@@ -116,12 +116,14 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			h.alerting = false
+			notify.StopAlert()
 			return h, tea.Quit
 		case "esc":
 			if h.notice != "" || h.alerting {
 				was := h.notice
 				h.notice = ""
 				h.alerting = false
+				notify.StopAlert()
 				if h.status == was || strings.HasPrefix(h.status, "Timer finished:") {
 					h.status = ""
 				}
@@ -259,6 +261,7 @@ func (h hubModel) doStopTimer() (tea.Model, tea.Cmd) {
 		h.errMsg = ""
 		h.notice = ""
 		h.alerting = false
+		notify.StopAlert()
 	}
 	h.active = refreshActive(h.deps.Root, h.deps.Now())
 	btns := hubActionButtons(h.active)

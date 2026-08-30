@@ -4,11 +4,11 @@ package notify
 
 import "time"
 
-func nativeBeep() {
+func nativeAlert() {
 	d := Default{}
 	_ = d.Beep()
-	time.Sleep(90 * time.Millisecond)
-	_ = d.Beep()
-	time.Sleep(90 * time.Millisecond)
+	time.Sleep(80 * time.Millisecond)
 	_ = d.Beep()
 }
+
+func nativeStopAlert() {}
