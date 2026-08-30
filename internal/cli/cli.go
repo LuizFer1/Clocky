@@ -1,7 +1,12 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
 
+	"github.com/luisf/clocky/internal/state"
+)
+
+// Run dispatches clocky subcommands.
 func Run(args []string) error {
 	if len(args) == 0 {
 		printHelp()
@@ -11,9 +16,34 @@ func Run(args []string) error {
 	case "help", "-h", "--help":
 		printHelp()
 		return nil
+	case "pomodoro":
+		return runPomodoro(args[1:])
+	case "timer":
+		return runTimer(args[1:])
+	case "stopwatch":
+		return runStopwatch(args[1:])
+	case "add":
+		return runAdd(args[1:])
+	case "list":
+		return runList(args[1:])
+	case "remove":
+		return runRemove(args[1:])
+	case "status":
+		return runStatus(args[1:])
 	default:
 		return fmt.Errorf("unknown command %q\nrun: clocky help", args[0])
 	}
+}
+
+func rootDir() (string, error) {
+	root, err := state.DefaultRoot()
+	if err != nil {
+		return "", err
+	}
+	if err := state.EnsureDir(root); err != nil {
+		return "", err
+	}
+	return root, nil
 }
 
 func printHelp() {
@@ -30,5 +60,12 @@ Usage:
   clocky remove <pomodoro|timer> <name>
   clocky status
   clocky help
+
+Pomodoro flags:
+  --focus <min>   Focus duration in minutes (default 25)
+  --break <min>   Short break in minutes (default 5)
+  --long <min>    Long break in minutes (default 15)
+  --cycles <n>    Focus sessions before long break (default 4)
+  --auto          Advance phases without pressing Enter
 `)
 }
