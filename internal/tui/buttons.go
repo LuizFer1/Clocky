@@ -49,17 +49,17 @@ var (
 // hubActionButtons builds the action row. Stopwatch label flips with state;
 // Stop Timer only appears while a background timer is running.
 func hubActionButtons(a activeSnapshot) []actionButton {
-	swLabel := "▶ Start Stopwatch"
+	swLabel := "Start Stopwatch"
 	if a.StopwatchRunning {
-		swLabel = "■ Stop Stopwatch"
+		swLabel = "Stop Stopwatch"
 	}
 	btns := []actionButton{
-		{actionNewPomodoro, "◷ New Pomodoro"},
-		{actionNewTimer, "◔ New Timer"},
+		{actionNewPomodoro, "New Pomodoro"},
+		{actionNewTimer, "New Timer"},
 		{actionStopwatchToggle, swLabel},
 	}
 	if a.TimerActive {
-		btns = append(btns, actionButton{actionStopTimer, "■ Stop Timer"})
+		btns = append(btns, actionButton{actionStopTimer, "Stop Timer"})
 	}
 	return btns
 }
