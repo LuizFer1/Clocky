@@ -14,12 +14,10 @@ func centerIn(w, h int, content string) string {
 	if h < 1 {
 		h = 1
 	}
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, content,
-		lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
-	)
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, content)
 }
 
-// fillFrame paints a full-terminal frame: CLOCKY banner, subtitle, body, footer.
+// fillFrame paints a full-terminal frame: CLOCKY banner, breadcrumb, body, footer.
 func fillFrame(w, h int, header, body, footer string) string {
 	if w < 1 {
 		w = 80
@@ -28,28 +26,13 @@ func fillFrame(w, h int, header, body, footer string) string {
 		h = 24
 	}
 
-	subtitleStyle := lipgloss.NewStyle().
-		Width(w).
-		Align(lipgloss.Center).
-		Foreground(lipgloss.Color("183")).
-		Background(lipgloss.Color("235"))
-
-	footerStyle := lipgloss.NewStyle().
-		Width(w).
-		Padding(0, 2).
-		Foreground(lipgloss.Color("250")).
-		Background(lipgloss.Color("236"))
-
-	bodyStyle := lipgloss.NewStyle().
-		Width(w).
-		Foreground(lipgloss.Color("252"))
-
 	banner := clockyBanner(w)
 	sub := ""
 	if strings.TrimSpace(header) != "" {
-		sub = subtitleStyle.Render(header)
+		crumb := styleDim.Render("clocky › ") + stylePhase.Render(header)
+		sub = lipgloss.PlaceHorizontal(w, lipgloss.Center, crumb)
 	}
-	foot := footerStyle.Render(footer)
+	foot := renderFooter(footer, w)
 
 	used := lipgloss.Height(banner) + lipgloss.Height(foot)
 	if sub != "" {
@@ -60,7 +43,7 @@ func fillFrame(w, h int, header, body, footer string) string {
 		bodyH = 1
 	}
 
-	inner := bodyStyle.Height(bodyH).Render(
+	inner := lipgloss.NewStyle().Width(w).Height(bodyH).Foreground(colText).Render(
 		lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, body),
 	)
 	parts := []string{banner}
@@ -71,16 +54,48 @@ func fillFrame(w, h int, header, body, footer string) string {
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
+// renderFooter turns "key desc  key desc" pairs (two-space separated) into
+// a status bar with highlighted keys.
+func renderFooter(footer string, w int) string {
+	var parts []string
+	for _, chunk := range strings.Split(footer, "  ") {
+		chunk = strings.TrimSpace(chunk)
+		if chunk == "" {
+			continue
+		}
+		key, desc, ok := strings.Cut(chunk, " ")
+		if !ok {
+			parts = append(parts, styleMuted.Render(chunk))
+			continue
+		}
+		parts = append(parts, styleKey.Render(key)+" "+styleMuted.Render(desc))
+	}
+	line := strings.Join(parts, styleDim.Render("  ·  "))
+	return lipgloss.NewStyle().Width(w).Padding(0, 2).Background(colSurface).Render(
+		lipgloss.PlaceHorizontal(max(1, w-4), lipgloss.Center, line),
+	)
+}
+
 // panelBox renders a titled bordered panel at the given content width.
 func panelBox(title, content string, width int) string {
+	return panelBoxFocused(title, content, width, false)
+}
+
+// panelBoxFocused is panelBox with a highlighted border when focused.
+func panelBoxFocused(title, content string, width int, focused bool) string {
 	if width < 10 {
 		width = 10
 	}
-	inner := styleTitle.Render(title) + "\n" + content
-	return stylePanel.Width(width).Render(inner)
+	st := stylePanel
+	head := styleTitle.Render(title)
+	if focused {
+		st = stylePanelFocused
+		head = styleTitle.Render("▸ " + title)
+	}
+	return st.Width(width).Render(head + "\n" + content)
 }
 
-// joinPanels stacks panels with a blank line, trimmed.
+// joinPanels stacks panels, trimmed of empties.
 func joinPanels(parts ...string) string {
 	var nonempty []string
 	for _, p := range parts {

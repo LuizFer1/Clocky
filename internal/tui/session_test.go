@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/LuizFer1/Clocky/internal/pomodoro"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestSessionPauseFreezesRemaining(t *testing.T) {
@@ -37,7 +38,7 @@ func TestSessionPauseFreezesRemaining(t *testing.T) {
 
 func TestProgressBarBounds(t *testing.T) {
 	bar := progressBar(5*time.Second, 10*time.Second, 10)
-	if len([]rune(bar)) != 10 {
-		t.Fatalf("bar=%q len=%d", bar, len([]rune(bar)))
+	if lipgloss.Width(bar) != 10 {
+		t.Fatalf("bar=%q len=%d", bar, lipgloss.Width(bar))
 	}
 }

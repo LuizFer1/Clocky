@@ -27,13 +27,13 @@ func TestStopwatchButtonLabelFlips(t *testing.T) {
 	now := time.Unix(1000, 0)
 	h := newHubModel(Dependencies{Root: root, Now: func() time.Time { return now }})
 	btns := hubActionButtons(h.active)
-	if btns[2].Label != "Start Stopwatch" {
+	if btns[2].Label != "▶ Start Stopwatch" {
 		t.Fatalf("idle label=%q", btns[2].Label)
 	}
 	m, _ := h.doStopwatch()
 	h = m.(hubModel)
 	btns = hubActionButtons(h.active)
-	if btns[2].Label != "Stop Stopwatch" {
+	if btns[2].Label != "■ Stop Stopwatch" {
 		t.Fatalf("running label=%q", btns[2].Label)
 	}
 }

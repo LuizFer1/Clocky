@@ -12,8 +12,8 @@ func TestClockyBannerContainsBlocks(t *testing.T) {
 	if !strings.Contains(b, "█") {
 		t.Fatal("expected filled block characters")
 	}
-	if !strings.Contains(b, "░") {
-		t.Fatal("expected shade fill around banner")
+	if !strings.Contains(b, "─") {
+		t.Fatal("expected rule under banner")
 	}
 	if lipgloss.Width(b) > 80 {
 		t.Fatalf("width=%d", lipgloss.Width(b))

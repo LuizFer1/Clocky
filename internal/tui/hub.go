@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/LuizFer1/Clocky/internal/duration"
 	"github.com/LuizFer1/Clocky/internal/pomodoro"
 	"github.com/LuizFer1/Clocky/internal/presets"
 	"github.com/LuizFer1/Clocky/internal/stopwatch"
 	"github.com/LuizFer1/Clocky/internal/timer"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type startSessionMsg struct {
@@ -296,11 +296,7 @@ func (h hubModel) View() string {
 	}
 	actions := wrapActionBar(btns, h.actionCursor, h.focus == focusActions, panelW, w)
 	activePanel := panelBox("Active", renderActive(h.active), panelW)
-	presetsTitle := "Presets"
-	if h.focus == focusPresets {
-		presetsTitle = "Presets  (focused)"
-	}
-	presetsPanel := panelBox(presetsTitle, renderPresets(h.items, h.cursor, h.focus == focusPresets), panelW)
+	presetsPanel := panelBoxFocused("Presets", renderPresets(h.items, h.cursor, h.focus == focusPresets), panelW, h.focus == focusPresets)
 
 	var statusLine string
 	if h.errMsg != "" {
@@ -310,27 +306,30 @@ func (h hubModel) View() string {
 	}
 
 	body := joinPanels(actions, activePanel, presetsPanel, statusLine)
-	footer := "tab focus  ←→ actions  ↑↓ presets  enter start preset  e edit  d delete  q quit"
+	footer := "tab focus  ←→ actions  ↑↓ presets  enter start  e edit  d delete  q quit"
 	return fillFrame(w, ht, "hub", body, footer)
 }
 
 func renderActive(a activeSnapshot) string {
+	on := styleOK.Render("●")
+	off := styleDim.Render("○")
+	name := func(s string) string { return fmt.Sprintf("%-10s", s) }
 	var lines []string
 	if a.TimerActive {
 		label := a.TimerLabel
 		if label == "" {
 			label = "timer"
 		}
-		lines = append(lines, fmt.Sprintf("[*] Timer      %-12s  %s remaining", label, duration.Format(a.TimerRemaining)))
+		lines = append(lines, on+" "+name("Timer")+" "+styleOK.Render(duration.Format(a.TimerRemaining)+" left")+"  "+styleMuted.Render(label))
 	} else {
-		lines = append(lines, "[ ] Timer      idle")
+		lines = append(lines, off+" "+name("Timer")+" "+styleMuted.Render("idle"))
 	}
 	if a.StopwatchRunning {
-		lines = append(lines, fmt.Sprintf("[*] Stopwatch                %s elapsed", duration.Format(a.StopwatchElapsed)))
+		lines = append(lines, on+" "+name("Stopwatch")+" "+styleOK.Render(duration.Format(a.StopwatchElapsed)+" elapsed"))
 	} else {
-		lines = append(lines, "[ ] Stopwatch  idle")
+		lines = append(lines, off+" "+name("Stopwatch")+" "+styleMuted.Render("idle"))
 	}
-	lines = append(lines, "[ ] Pomodoro   idle — New Pomodoro or Start a preset")
+	lines = append(lines, off+" "+name("Pomodoro")+" "+styleMuted.Render("idle — New Pomodoro or start a preset"))
 	return strings.Join(lines, "\n")
 }
 
@@ -340,16 +339,18 @@ func renderPresets(items []presetItem, cursor int, focused bool) string {
 	}
 	var b strings.Builder
 	for i, it := range items {
-		prefix := "  "
-		line := fmt.Sprintf("%-12s  %s", it.Name, it.Summary)
-		if focused && i == cursor {
-			prefix = "> "
-			b.WriteString(styleSel.Render(prefix + line))
-		} else if i == cursor {
-			prefix = "· "
-			b.WriteString(prefix + line)
-		} else {
-			b.WriteString(prefix + line)
+		icon := "◔"
+		if it.Kind == kindPomodoro {
+			icon = "◷"
+		}
+		line := fmt.Sprintf("%s %-12s  %s", icon, it.Name, it.Summary)
+		switch {
+		case focused && i == cursor:
+			b.WriteString(styleSel.Render("▸ " + line + " "))
+		case i == cursor:
+			b.WriteString("▹ " + line)
+		default:
+			b.WriteString("  " + line)
 		}
 		b.WriteString("\n")
 	}
