@@ -38,7 +38,7 @@ func TestStatusRemaining(t *testing.T) {
 	}
 	if err := state.WriteJSON(state.Path(root, "timer.json"), State{
 		Deadline: deadline,
-		PID:      1,
+		PID:      os.Getpid(),
 		Label:    "tea",
 	}); err != nil {
 		t.Fatal(err)
@@ -58,18 +58,44 @@ func TestStatusRemaining(t *testing.T) {
 		t.Fatalf("label = %q want tea", label)
 	}
 
+	// Past deadline but PID still alive → active with 0 remaining.
 	active, remaining, label, err = Status(root, deadline.Add(time.Second))
 	if err != nil {
 		t.Fatalf("Status past: %v", err)
 	}
 	if !active {
-		t.Fatal("expected still active while file present")
+		t.Fatal("expected still active while worker PID is alive")
 	}
 	if remaining != 0 {
 		t.Fatalf("remaining = %v want 0", remaining)
 	}
 	if label != "tea" {
 		t.Fatalf("label = %q", label)
+	}
+}
+
+func TestStatusClearsStaleExpired(t *testing.T) {
+	root := t.TempDir()
+	if err := state.EnsureDir(root); err != nil {
+		t.Fatal(err)
+	}
+	path := state.Path(root, "timer.json")
+	if err := state.WriteJSON(path, State{
+		Deadline: time.Now().Add(-time.Minute),
+		PID:      1<<30 - 7, // almost certainly not running
+		Label:    "stale",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	active, _, _, err := Status(root, time.Now())
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if active {
+		t.Fatal("expected idle for stale expired timer")
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected stale file removed, got %v", err)
 	}
 }
 

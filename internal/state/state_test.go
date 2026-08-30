@@ -48,6 +48,18 @@ func TestWriteJSONReadJSONRoundTrip(t *testing.T) {
 	if got != want {
 		t.Fatalf("got %+v want %+v", got, want)
 	}
+
+	// Overwrite existing file (critical on Windows where rename cannot replace).
+	want.Count = 9
+	if err := WriteJSON(path, want); err != nil {
+		t.Fatalf("WriteJSON overwrite: %v", err)
+	}
+	if err := ReadJSON(path, &got); err != nil {
+		t.Fatalf("ReadJSON after overwrite: %v", err)
+	}
+	if got != want {
+		t.Fatalf("after overwrite got %+v want %+v", got, want)
+	}
 }
 
 func TestReadJSONMissing(t *testing.T) {

@@ -26,13 +26,13 @@ func (d Default) out() io.Writer {
 }
 
 func (d Default) Beep() error {
-	_, err := fmt.Fprint(d.out(), "\a")
-	return err
+	_, _ = fmt.Fprint(d.out(), "\a")
+	return nil // ignore closed stdout (detached timer workers)
 }
 
 func (d Default) Banner(title, body string) error {
-	_, err := fmt.Fprintf(d.out(), "\n*** %s ***\n%s\n\n", title, body)
-	return err
+	_, _ = fmt.Fprintf(d.out(), "\n*** %s ***\n%s\n\n", title, body)
+	return nil // ignore closed stdout (detached timer workers)
 }
 
 func (d Default) Desktop(title, body string) error {

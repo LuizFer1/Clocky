@@ -36,6 +36,11 @@ func WriteJSON(path string, v any) error {
 		os.Remove(tmpName)
 		return err
 	}
+	// Windows cannot rename over an existing file.
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		os.Remove(tmpName)
+		return err
+	}
 	if err := os.Rename(tmpName, path); err != nil {
 		os.Remove(tmpName)
 		return err

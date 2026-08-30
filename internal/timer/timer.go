@@ -47,6 +47,9 @@ func Start(root string, d time.Duration, label string, exe string, workerArgs []
 
 	cmd := exec.Command(exe, workerArgs...)
 	cmd.Dir = root
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Stdin = nil
 	detach(cmd)
 
 	if err := cmd.Start(); err != nil {
@@ -101,6 +104,11 @@ func Status(root string, now time.Time) (active bool, remaining time.Duration, l
 	if remaining < 0 {
 		remaining = 0
 	}
+	// Stale file after a crashed worker: treat as idle once past deadline and PID is dead.
+	if remaining == 0 && !processAlive(st.PID) {
+		_ = os.Remove(path)
+		return false, 0, "", nil
+	}
 	return true, remaining, st.Label, nil
 }
 
@@ -138,11 +146,14 @@ func Worker(root string, n notify.Notifier, sleep func(time.Duration), now func(
 	if body == "" {
 		body = "Timer complete"
 	}
-	if err := notify.All(n, "Timer finished", body); err != nil {
-		return err
-	}
+	// Always clear state after the deadline, even if notify fails
+	// (detached workers often cannot write banners to a closed stdout).
+	notifyErr := notify.All(n, "Timer finished", body)
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if notifyErr != nil {
+			return fmt.Errorf("notify: %v; clear state: %w", notifyErr, err)
+		}
 		return err
 	}
-	return nil
+	return notifyErr
 }
