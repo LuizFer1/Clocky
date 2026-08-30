@@ -19,7 +19,7 @@ func centerIn(w, h int, content string) string {
 	)
 }
 
-// fillFrame paints a full-terminal frame: optional header, body (expands), footer.
+// fillFrame paints a full-terminal frame: CLOCKY banner, subtitle, body, footer.
 func fillFrame(w, h int, header, body, footer string) string {
 	if w < 1 {
 		w = 80
@@ -28,12 +28,11 @@ func fillFrame(w, h int, header, body, footer string) string {
 		h = 24
 	}
 
-	headerStyle := lipgloss.NewStyle().
+	subtitleStyle := lipgloss.NewStyle().
 		Width(w).
-		Padding(0, 2).
-		Bold(true).
-		Foreground(lipgloss.Color("231")).
-		Background(lipgloss.Color("57"))
+		Align(lipgloss.Center).
+		Foreground(lipgloss.Color("183")).
+		Background(lipgloss.Color("235"))
 
 	footerStyle := lipgloss.NewStyle().
 		Width(w).
@@ -45,10 +44,17 @@ func fillFrame(w, h int, header, body, footer string) string {
 		Width(w).
 		Foreground(lipgloss.Color("252"))
 
-	head := headerStyle.Render(header)
+	banner := clockyBanner(w)
+	sub := ""
+	if strings.TrimSpace(header) != "" {
+		sub = subtitleStyle.Render(header)
+	}
 	foot := footerStyle.Render(footer)
 
-	used := lipgloss.Height(head) + lipgloss.Height(foot)
+	used := lipgloss.Height(banner) + lipgloss.Height(foot)
+	if sub != "" {
+		used += lipgloss.Height(sub)
+	}
 	bodyH := h - used
 	if bodyH < 1 {
 		bodyH = 1
@@ -57,7 +63,12 @@ func fillFrame(w, h int, header, body, footer string) string {
 	inner := bodyStyle.Height(bodyH).Render(
 		lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, body),
 	)
-	return lipgloss.JoinVertical(lipgloss.Left, head, inner, foot)
+	parts := []string{banner}
+	if sub != "" {
+		parts = append(parts, sub)
+	}
+	parts = append(parts, inner, foot)
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
 // panelBox renders a titled bordered panel at the given content width.
