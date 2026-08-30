@@ -43,6 +43,7 @@ type hubModel struct {
 	focus        hubFocus
 	status       string
 	errMsg       string
+	notice       string // prominent in-hub alert (e.g. timer finished)
 	width        int
 	height       int
 }
@@ -83,12 +84,28 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		h.height = msg.Height
 		return h, nil
 	case tickMsg:
+		prev := h.active
 		h.active = refreshActive(h.deps.Root, h.deps.Now())
+		if msg, ok := timerFinishedNotice(prev, h.active, h.status); ok {
+			h.notice = msg
+			h.status = msg
+			h.errMsg = ""
+		}
 		return h, scheduleTick()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return h, tea.Quit
+		case "esc":
+			if h.notice != "" {
+				was := h.notice
+				h.notice = ""
+				if h.status == was || strings.HasPrefix(h.status, "Timer finished:") {
+					h.status = ""
+				}
+				return h, nil
+			}
+			return h, nil
 		case "tab":
 			if h.focus == focusActions {
 				h.focus = focusPresets
@@ -218,6 +235,7 @@ func (h hubModel) doStopTimer() (tea.Model, tea.Cmd) {
 	} else {
 		h.status = "Timer stopped"
 		h.errMsg = ""
+		h.notice = ""
 	}
 	h.active = refreshActive(h.deps.Root, h.deps.Now())
 	btns := hubActionButtons(h.active)
@@ -311,16 +329,17 @@ func (h hubModel) View() string {
 	actions := wrapActionBar(btns, h.actionCursor, h.focus == focusActions, panelW, w)
 	activePanel := panelBox("Active", renderActive(h.active), panelW)
 	presetsPanel := panelBoxFocused("Presets", renderPresets(h.items, h.cursor, h.focus == focusPresets), panelW, h.focus == focusPresets)
+	noticePanel := renderNotice(h.notice, panelW)
 
 	var statusLine string
 	if h.errMsg != "" {
 		statusLine = styleError.Render(h.errMsg)
-	} else if h.status != "" {
+	} else if h.status != "" && h.status != h.notice {
 		statusLine = styleOK.Render(h.status)
 	}
 
-	body := joinPanels(actions, activePanel, presetsPanel, statusLine)
-	footer := "←→ actions  ↑↓ presets  enter  space action  e edit  d delete  q quit"
+	body := joinPanels(noticePanel, actions, activePanel, presetsPanel, statusLine)
+	footer := "←→ actions  ↑↓ presets  enter  space action  esc dismiss  e edit  d delete  q quit"
 	return fillFrame(w, ht, "hub", body, footer)
 }
 
@@ -334,7 +353,11 @@ func renderActive(a activeSnapshot) string {
 		if label == "" {
 			label = "timer"
 		}
-		lines = append(lines, on+" "+name("Timer")+" "+styleOK.Render(duration.Format(a.TimerRemaining)+" left")+"  "+styleMuted.Render(label))
+		if a.TimerRemaining == 0 {
+			lines = append(lines, on+" "+name("Timer")+" "+stylePaused.Render("FINISHED")+"  "+styleMuted.Render(label))
+		} else {
+			lines = append(lines, on+" "+name("Timer")+" "+styleOK.Render(duration.Format(a.TimerRemaining)+" left")+"  "+styleMuted.Render(label))
+		}
 	} else {
 		lines = append(lines, off+" "+name("Timer")+" "+styleMuted.Render("idle"))
 	}
