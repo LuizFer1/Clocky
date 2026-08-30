@@ -97,23 +97,29 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return h, nil
 		case "left", "h":
-			if h.focus == focusActions && h.actionCursor > 0 {
+			// Horizontal keys drive the action bar.
+			if h.focus != focusActions {
+				h.focus = focusActions
+				return h, nil
+			}
+			if h.actionCursor > 0 {
 				h.actionCursor--
 			}
 			return h, nil
 		case "right", "l":
-			if h.focus == focusActions {
-				btns := hubActionButtons(h.active)
-				if h.actionCursor < len(btns)-1 {
-					h.actionCursor++
-				}
+			if h.focus != focusActions {
+				h.focus = focusActions
+				return h, nil
+			}
+			btns := hubActionButtons(h.active)
+			if h.actionCursor < len(btns)-1 {
+				h.actionCursor++
 			}
 			return h, nil
 		case "up", "k":
-			if h.focus == focusActions {
-				if h.actionCursor > 0 {
-					h.actionCursor--
-				}
+			// Vertical keys drive the preset list.
+			if h.focus != focusPresets {
+				h.focus = focusPresets
 				return h, nil
 			}
 			if h.cursor > 0 {
@@ -121,18 +127,15 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return h, nil
 		case "down", "j":
-			if h.focus == focusActions {
-				btns := hubActionButtons(h.active)
-				if h.actionCursor < len(btns)-1 {
-					h.actionCursor++
-				}
+			if h.focus != focusPresets {
+				h.focus = focusPresets
 				return h, nil
 			}
 			if h.cursor < len(h.items)-1 {
 				h.cursor++
 			}
 			return h, nil
-		case "enter", " ":
+		case "enter":
 			if h.focus == focusActions {
 				btns := hubActionButtons(h.active)
 				if len(btns) == 0 {
@@ -144,6 +147,17 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return h.activateAction(btns[h.actionCursor].ID)
 			}
 			return h.startSelected()
+		case " ":
+			// Space always activates the highlighted action button.
+			h.focus = focusActions
+			btns := hubActionButtons(h.active)
+			if len(btns) == 0 {
+				return h, nil
+			}
+			if h.actionCursor >= len(btns) {
+				h.actionCursor = len(btns) - 1
+			}
+			return h.activateAction(btns[h.actionCursor].ID)
 		case "s":
 			if h.active.TimerActive {
 				return h.doStopTimer()
@@ -306,7 +320,7 @@ func (h hubModel) View() string {
 	}
 
 	body := joinPanels(actions, activePanel, presetsPanel, statusLine)
-	footer := "tab focus  ←→ actions  ↑↓ presets  enter start  e edit  d delete  q quit"
+	footer := "←→ actions  ↑↓ presets  enter  space action  e edit  d delete  q quit"
 	return fillFrame(w, ht, "hub", body, footer)
 }
 
