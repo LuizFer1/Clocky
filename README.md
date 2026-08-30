@@ -20,12 +20,36 @@ clocky stopwatch
 
 ## Install
 
+### One-line install
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/luisf/Clocky/master/scripts/install.ps1 | iex
+```
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/luisf/Clocky/master/scripts/install.sh | bash
+```
+
+Defaults: Windows `%LOCALAPPDATA%\Clocky`, Unix `~/.local/bin`. Override with `CLOCKY_INSTALL_DIR`, pin a release with `CLOCKY_VERSION=v1.2.0`, or point at a fork with `CLOCKY_GITHUB_REPO=owner/name`.
+
+### Update
+
+```bash
+clocky update
+clocky update --yes
+clocky update --check
+```
+
 ### From source
 
 Requires [Go](https://go.dev/) 1.22+.
 
 ```bash
-git clone https://github.com/<you>/Clocky.git
+git clone https://github.com/luisf/Clocky.git
 cd Clocky
 go build -o clocky ./cmd/clocky
 ```
@@ -39,8 +63,6 @@ sudo mv clocky /usr/local/bin/
 # Windows (PowerShell, example)
 Move-Item .\clocky.exe $env:USERPROFILE\bin\clocky.exe
 ```
-
-> Binary releases will be added later.
 
 ## Quick start
 
@@ -75,6 +97,8 @@ clocky status
 | `clocky list [pomodoro\|timer]` | List saved presets |
 | `clocky remove <type> <name>` | Delete a preset |
 | `clocky status` | Show active timer / stopwatch |
+| `clocky version` | Print embedded version |
+| `clocky update [--yes] [--check]` | Upgrade from GitHub Releases |
 | `clocky help` | Show usage |
 
 ### Pomodoro flags
