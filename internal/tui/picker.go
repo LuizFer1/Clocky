@@ -14,9 +14,11 @@ type pickerCancelMsg struct{}
 
 type pickerModel struct {
 	cursor int
+	width  int
+	height int
 }
 
-func newPickerModel() pickerModel { return pickerModel{} }
+func newPickerModel() pickerModel { return pickerModel{width: 80, height: 24} }
 
 func (p pickerModel) Init() tea.Cmd { return nil }
 
@@ -50,10 +52,15 @@ func (p pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (p pickerModel) View() string {
+	w, ht := p.width, p.height
+	if w <= 0 {
+		w = 80
+	}
+	if ht <= 0 {
+		ht = 24
+	}
 	opts := []string{"Pomodoro preset", "Timer preset"}
 	var b strings.Builder
-	b.WriteString(styleTitle.Render("New preset"))
-	b.WriteString("\n\n")
 	for i, o := range opts {
 		cur := "  "
 		line := o
@@ -65,7 +72,7 @@ func (p pickerModel) View() string {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
-	b.WriteString("\n")
-	b.WriteString(styleMuted.Render("enter choose  esc cancel"))
-	return b.String()
+	panelW := min(40, max(28, w-10))
+	body := panelBox("New preset", strings.TrimRight(b.String(), "\n"), panelW)
+	return fillFrame(w, ht, "Clocky  ·  new", body, "enter choose  esc cancel")
 }

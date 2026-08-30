@@ -16,7 +16,7 @@ func TestSessionPauseFreezesRemaining(t *testing.T) {
 		Cycles: 1,
 		Auto:   true,
 	}
-	s := newSessionModel(cfg, 40, nil)
+	s := newSessionModel(cfg, 40, 24, nil)
 	m, _ := s.Update(tickMsg{})
 	s = m.(sessionModel)
 	if s.remaining != 4*time.Second {

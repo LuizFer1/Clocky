@@ -22,14 +22,16 @@ const (
 )
 
 type formModel struct {
-	root     string
-	kind     formKind
-	editing  bool
-	fields   []string
-	labels   []string
-	focus    int
-	errMsg   string
-	title    string
+	root    string
+	kind    formKind
+	editing bool
+	fields  []string
+	labels  []string
+	focus   int
+	errMsg  string
+	title   string
+	width   int
+	height  int
 }
 
 func newPomodoroForm(root string, existing *presets.PomodoroPreset) formModel {
@@ -159,9 +161,15 @@ func (f formModel) save() error {
 }
 
 func (f formModel) View() string {
+	w, ht := f.width, f.height
+	if w <= 0 {
+		w = 80
+	}
+	if ht <= 0 {
+		ht = 24
+	}
+	panelW := min(56, max(28, w-10))
 	var b strings.Builder
-	b.WriteString(styleTitle.Render(f.title))
-	b.WriteString("\n\n")
 	for i, label := range f.labels {
 		cursor := "  "
 		val := f.fields[i]
@@ -180,9 +188,7 @@ func (f formModel) View() string {
 	if f.errMsg != "" {
 		b.WriteString("\n")
 		b.WriteString(styleError.Render(f.errMsg))
-		b.WriteString("\n")
 	}
-	b.WriteString("\n")
-	b.WriteString(styleMuted.Render("tab fields  enter save  esc cancel"))
-	return b.String()
+	body := panelBox(f.title, strings.TrimRight(b.String(), "\n"), panelW)
+	return fillFrame(w, ht, "Clocky  ·  preset", body, "tab fields  enter save  esc cancel")
 }

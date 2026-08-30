@@ -38,10 +38,11 @@ type hubModel struct {
 	status string
 	errMsg string
 	width  int
+	height int
 }
 
 func newHubModel(deps Dependencies) hubModel {
-	h := hubModel{deps: deps, width: 80}
+	h := hubModel{deps: deps, width: 80, height: 24}
 	h.reload()
 	return h
 }
@@ -73,6 +74,7 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h.width = msg.Width
+		h.height = msg.Height
 		return h, nil
 	case tickMsg:
 		h.active = refreshActive(h.deps.Root, h.deps.Now())
@@ -195,34 +197,35 @@ func (h hubModel) startSelected() (tea.Model, tea.Cmd) {
 }
 
 func (h hubModel) View() string {
-	w := h.width
+	w, ht := h.width, h.height
 	if w <= 0 {
 		w = 80
 	}
-	inner := w - 4
-	if inner < 20 {
-		inner = 20
+	if ht <= 0 {
+		ht = 24
+	}
+	// Panel content width: leave margin so the stack looks centered in wide terminals.
+	panelW := w - 8
+	if panelW > 72 {
+		panelW = 72
+	}
+	if panelW < 28 {
+		panelW = max(20, w-4)
 	}
 
-	activePanel := stylePanel.Width(inner).Render(styleTitle.Render("Active") + "\n" + renderActive(h.active))
-	presetsPanel := stylePanel.Width(inner).Render(styleTitle.Render("Presets") + "\n" + renderPresets(h.items, h.cursor))
+	activePanel := panelBox("Active", renderActive(h.active), panelW)
+	presetsPanel := panelBox("Presets", renderPresets(h.items, h.cursor), panelW)
 
-	var b strings.Builder
-	b.WriteString(styleTitle.Render("Clocky"))
-	b.WriteString("\n")
-	b.WriteString(activePanel)
-	b.WriteString("\n")
-	b.WriteString(presetsPanel)
-	b.WriteString("\n")
+	var statusLine string
 	if h.errMsg != "" {
-		b.WriteString(styleError.Render(h.errMsg))
-		b.WriteString("\n")
+		statusLine = styleError.Render(h.errMsg)
 	} else if h.status != "" {
-		b.WriteString(styleOK.Render(h.status))
-		b.WriteString("\n")
+		statusLine = styleOK.Render(h.status)
 	}
-	b.WriteString(styleMuted.Render("↑↓ select  ↵ start  n new  e edit  d delete  s stop timer  t stopwatch  p pomodoro  q quit"))
-	return b.String()
+
+	body := joinPanels(activePanel, presetsPanel, statusLine)
+	footer := "↑↓ select  ↵ start  n new  e edit  d delete  s stop timer  t stopwatch  p pomodoro  q quit"
+	return fillFrame(w, ht, "Clocky  ·  hub", body, footer)
 }
 
 func renderActive(a activeSnapshot) string {

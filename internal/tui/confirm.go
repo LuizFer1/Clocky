@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -12,12 +11,14 @@ type confirmResultMsg struct {
 }
 
 type confirmModel struct {
-	kind string
-	name string
+	kind   string
+	name   string
+	width  int
+	height int
 }
 
 func newConfirmModel(kind, name string) confirmModel {
-	return confirmModel{kind: kind, name: name}
+	return confirmModel{kind: kind, name: name, width: 80, height: 24}
 }
 
 func (c confirmModel) Init() tea.Cmd { return nil }
@@ -38,11 +39,15 @@ func (c confirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (c confirmModel) View() string {
-	var b strings.Builder
-	b.WriteString(styleTitle.Render("Confirm delete"))
-	b.WriteString("\n\n")
-	b.WriteString(fmt.Sprintf("Delete %s preset %q?\n", c.kind, c.name))
-	b.WriteString("\n")
-	b.WriteString(styleMuted.Render("y confirm  n/esc cancel"))
-	return b.String()
+	w, ht := c.width, c.height
+	if w <= 0 {
+		w = 80
+	}
+	if ht <= 0 {
+		ht = 24
+	}
+	panelW := min(48, max(28, w-10))
+	msg := fmt.Sprintf("Delete %s preset %q?", c.kind, c.name)
+	body := panelBox("Confirm delete", msg, panelW)
+	return fillFrame(w, ht, "Clocky", body, "y confirm  n/esc cancel")
 }

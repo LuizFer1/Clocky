@@ -23,13 +23,17 @@ type sessionModel struct {
 	paused       bool
 	waitingEnter bool
 	width        int
+	height       int
 	status       string
 	notifier     notify.Notifier
 }
 
-func newSessionModel(cfg pomodoro.Config, width int, n notify.Notifier) sessionModel {
+func newSessionModel(cfg pomodoro.Config, width, height int, n notify.Notifier) sessionModel {
 	if width <= 0 {
-		width = 40
+		width = 80
+	}
+	if height <= 0 {
+		height = 24
 	}
 	if n == nil {
 		n = notify.Default{}
@@ -39,6 +43,7 @@ func newSessionModel(cfg pomodoro.Config, width int, n notify.Notifier) sessionM
 		cfg:      cfg,
 		phases:   phases,
 		width:    width,
+		height:   height,
 		notifier: n,
 	}
 	if len(phases) > 0 {
@@ -60,6 +65,7 @@ func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.width = msg.Width
+		s.height = msg.Height
 		return s, nil
 	case tickMsg:
 		if s.waitingEnter || s.paused || len(s.phases) == 0 {
@@ -142,37 +148,51 @@ func (s sessionModel) advanceAfterWait() (tea.Model, tea.Cmd) {
 }
 
 func (s sessionModel) View() string {
+	w, ht := s.width, s.height
+	if w <= 0 {
+		w = 80
+	}
+	if ht <= 0 {
+		ht = 24
+	}
+	footer := "space pause  n skip/next  esc/b hub  q quit"
 	if len(s.phases) == 0 {
-		return "No phases configured.\n\nesc/b back  q quit"
+		return fillFrame(w, ht, "Pomodoro", styleMuted.Render("No phases configured."), footer)
 	}
 	phase := s.phases[s.index]
-	face := clockface.Render(s.remaining, s.total, s.width)
-	compact := clockface.RenderCompact(phase.Name, phase.Cycle, s.cfg.Cycles, s.remaining)
-	barWidth := 24
-	if s.width > 0 && s.width < barWidth+4 {
-		barWidth = max(8, s.width-4)
+	// Size the ASCII face for the available width (leave room for frame chrome).
+	faceW := w - 6
+	if faceW < 15 {
+		faceW = w
 	}
-	bar := progressBar(s.remaining, s.total, barWidth)
-	var b strings.Builder
-	b.WriteString(styleTitle.Render("Pomodoro session"))
-	b.WriteString("\n\n")
-	b.WriteString(face)
-	b.WriteString("\n")
-	b.WriteString(compact)
-	b.WriteString("\n")
-	b.WriteString(bar)
-	b.WriteString("\n")
+	if faceW > 51 {
+		faceW = 51
+	}
+	face := clockface.Render(s.remaining, s.total, faceW)
+	compact := stylePhase.Render(clockface.RenderCompact(phase.Name, phase.Cycle, s.cfg.Cycles, s.remaining))
+	barWidth := min(36, max(16, faceW-4))
+	bar := styleTitle.Render(progressBar(s.remaining, s.total, barWidth))
+
+	parts := []string{face, "", compact, bar}
 	if s.paused {
-		b.WriteString(stylePaused.Render("PAUSED"))
-		b.WriteString("\n")
+		parts = append(parts, "", stylePaused.Render("◆ PAUSED ◆"))
 	}
 	if s.status != "" {
-		b.WriteString(styleMuted.Render(s.status))
-		b.WriteString("\n")
+		parts = append(parts, "", styleMuted.Render(s.status))
 	}
-	b.WriteString("\n")
-	b.WriteString(styleMuted.Render("space pause  n skip/next  esc/b hub  q quit"))
-	return b.String()
+	body := lipglossJoin(parts...)
+	return fillFrame(w, ht, "Pomodoro", body, footer)
+}
+
+func lipglossJoin(parts ...string) string {
+	return strings.Join(parts, "\n")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func progressBar(remaining, total time.Duration, width int) string {
