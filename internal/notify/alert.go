@@ -1,9 +1,8 @@
 package notify
 
 // Alert plays an audible cue for the interactive terminal (TUI hub).
-// Uses the ASCII bell plus a platform native beep when available.
+// On Windows this is a multi-tone Beep sequence; elsewhere it falls back
+// to repeated ASCII bells.
 func Alert() {
-	_ = Default{}.Beep()
 	nativeBeep()
-	_ = Default{}.Beep()
 }

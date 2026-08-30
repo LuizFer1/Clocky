@@ -5,13 +5,17 @@ package notify
 import "syscall"
 
 var (
-	user32           = syscall.NewLazyDLL("user32.dll")
-	procMessageBeep  = user32.NewProc("MessageBeep")
-	mbIconAsterisk   = uintptr(0x00000040)
+	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	procBeep = kernel32.NewProc("Beep")
 )
 
-// nativeBeep uses MessageBeep so audio still plays when the terminal ignores
-// ASCII BEL (common with some Windows hosts / alt screens).
+// nativeBeep plays a short ascending alarm chirp (Hz, milliseconds).
 func nativeBeep() {
-	_, _, _ = procMessageBeep.Call(mbIconAsterisk)
+	beepTone(880, 110)
+	beepTone(1175, 110)
+	beepTone(1568, 160)
+}
+
+func beepTone(freq, ms uint32) {
+	_, _, _ = procBeep.Call(uintptr(freq), uintptr(ms))
 }
