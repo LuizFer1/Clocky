@@ -17,7 +17,7 @@ func scheduleTick() tea.Cmd {
 
 // scheduleAlertTick repeats the hub alarm while a finished-timer notice is active.
 func scheduleAlertTick() tea.Cmd {
-	return tea.Tick(750*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(1250*time.Millisecond, func(time.Time) tea.Msg {
 		return alertTickMsg{}
 	})
 }
