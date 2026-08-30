@@ -2,9 +2,10 @@
 
 A simple cross-platform terminal time manager for **Windows**, **macOS**, and **Linux**.
 
-Clocky gives you a Pomodoro timer with an ASCII analog clock, a background countdown timer with system notifications, and a toggle stopwatch — all from the command line.
+Clocky gives you a Pomodoro timer with an ASCII analog clock, a background countdown timer with system notifications, and a toggle stopwatch — from an interactive Terminal UI or the classic CLI.
 
 ```text
+clocky                 # Terminal UI hub (interactive terminal)
 clocky pomodoro
 clocky timer :25:
 clocky stopwatch
@@ -12,10 +13,11 @@ clocky stopwatch
 
 ## Features
 
+- **Terminal UI** — hub with live timer/stopwatch, preset CRUD, and pomodoro sessions (ASCII clock + pause)
 - **Pomodoro** — focus / short break / long break cycles with a live ASCII analog clock face
 - **Timer** — runs in the background and notifies you when time is up (beep + banner + native OS notification)
 - **Stopwatch** — start on first call, stop and print elapsed time on the second
-- **Named presets** — save custom pomodoros and timers, then launch them by name
+- **Named presets** — save custom pomodoros and timers in the TUI or via `clocky add`
 - **Flexible duration syntax** — express time as `H:M:S` with optional empty fields
 
 ## Install
@@ -67,6 +69,9 @@ Move-Item .\clocky.exe $env:USERPROFILE\bin\clocky.exe
 ## Quick start
 
 ```bash
+# Interactive Terminal UI (hub: active timers + presets)
+clocky
+
 # Classic 25/5 pomodoro (ASCII clock in the terminal)
 clocky pomodoro
 
@@ -88,6 +93,7 @@ clocky status
 
 | Command | Description |
 |---------|-------------|
+| `clocky` | Open the Terminal UI (TTY); prints help when not interactive |
 | `clocky pomodoro [name] [flags]` | Start a pomodoro (defaults or named preset) |
 | `clocky timer <duration\|name>` | Start a background timer |
 | `clocky timer --stop` | Cancel the active timer |
