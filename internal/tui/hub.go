@@ -5,13 +5,23 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/LuizFer1/Clocky/internal/duration"
+	"github.com/LuizFer1/Clocky/internal/notify"
 	"github.com/LuizFer1/Clocky/internal/pomodoro"
 	"github.com/LuizFer1/Clocky/internal/presets"
 	"github.com/LuizFer1/Clocky/internal/stopwatch"
 	"github.com/LuizFer1/Clocky/internal/timer"
+	tea "github.com/charmbracelet/bubbletea"
 )
+
+type hubAlertMsg struct{}
+
+func hubAudioAlert() tea.Cmd {
+	return func() tea.Msg {
+		notify.Alert()
+		return hubAlertMsg{}
+	}
+}
 
 type startSessionMsg struct {
 	Cfg pomodoro.Config
@@ -25,23 +35,32 @@ type openFormMsg struct {
 	Tim  *presets.TimerPreset
 }
 
+type openLaunchFormMsg struct {
+	Kind formKind
+}
+
 type openConfirmMsg struct {
 	Kind string
 	Name string
 }
 
 type hubModel struct {
-	deps   Dependencies
-	active activeSnapshot
-	items  []presetItem
-	cursor int
-	status string
-	errMsg string
-	width  int
+	deps         Dependencies
+	active       activeSnapshot
+	items        []presetItem
+	cursor       int
+	actionCursor int
+	focus        hubFocus
+	status       string
+	errMsg       string
+	notice       string // prominent in-hub alert (e.g. timer finished)
+	alerting     bool   // keep sounding until the user dismisses the notice
+	width        int
+	height       int
 }
 
 func newHubModel(deps Dependencies) hubModel {
-	h := hubModel{deps: deps, width: 80}
+	h := hubModel{deps: deps, width: 80, height: 24, focus: focusActions}
 	h.reload()
 	return h
 }
@@ -73,54 +92,124 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h.width = msg.Width
+		h.height = msg.Height
 		return h, nil
 	case tickMsg:
+		prev := h.active
 		h.active = refreshActive(h.deps.Root, h.deps.Now())
+		if note, ok := timerFinishedNotice(prev, h.active, h.status); ok {
+			h.notice = note
+			h.status = note
+			h.errMsg = ""
+			h.alerting = true
+			return h, tea.Batch(scheduleTick(), hubAudioAlert(), scheduleAlertTick())
+		}
 		return h, scheduleTick()
+	case alertTickMsg:
+		if !h.alerting {
+			return h, nil
+		}
+		return h, tea.Batch(hubAudioAlert(), scheduleAlertTick())
+	case hubAlertMsg:
+		return h, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
+			h.alerting = false
+			notify.StopAlert()
 			return h, tea.Quit
+		case "esc":
+			if h.notice != "" || h.alerting {
+				was := h.notice
+				h.notice = ""
+				h.alerting = false
+				notify.StopAlert()
+				if h.status == was || strings.HasPrefix(h.status, "Timer finished:") {
+					h.status = ""
+				}
+				return h, nil
+			}
+			return h, nil
+		case "tab":
+			if h.focus == focusActions {
+				h.focus = focusPresets
+			} else {
+				h.focus = focusActions
+			}
+			return h, nil
+		case "left", "h":
+			// Horizontal keys drive the action bar.
+			if h.focus != focusActions {
+				h.focus = focusActions
+				return h, nil
+			}
+			if h.actionCursor > 0 {
+				h.actionCursor--
+			}
+			return h, nil
+		case "right", "l":
+			if h.focus != focusActions {
+				h.focus = focusActions
+				return h, nil
+			}
+			btns := hubActionButtons(h.active)
+			if h.actionCursor < len(btns)-1 {
+				h.actionCursor++
+			}
+			return h, nil
 		case "up", "k":
+			// Vertical keys drive the preset list.
+			if h.focus != focusPresets {
+				h.focus = focusPresets
+				return h, nil
+			}
 			if h.cursor > 0 {
 				h.cursor--
 			}
 			return h, nil
 		case "down", "j":
+			if h.focus != focusPresets {
+				h.focus = focusPresets
+				return h, nil
+			}
 			if h.cursor < len(h.items)-1 {
 				h.cursor++
 			}
 			return h, nil
+		case "enter":
+			if h.focus == focusActions {
+				btns := hubActionButtons(h.active)
+				if len(btns) == 0 {
+					return h, nil
+				}
+				if h.actionCursor >= len(btns) {
+					h.actionCursor = len(btns) - 1
+				}
+				return h.activateAction(btns[h.actionCursor].ID)
+			}
+			return h.startSelected()
+		case " ":
+			// Space always activates the highlighted action button.
+			h.focus = focusActions
+			btns := hubActionButtons(h.active)
+			if len(btns) == 0 {
+				return h, nil
+			}
+			if h.actionCursor >= len(btns) {
+				h.actionCursor = len(btns) - 1
+			}
+			return h.activateAction(btns[h.actionCursor].ID)
 		case "s":
-			if err := timer.Stop(h.deps.Root); err != nil {
-				h.errMsg = err.Error()
-			} else {
-				h.status = "Timer stopped"
-				h.errMsg = ""
+			if h.active.TimerActive {
+				return h.doStopTimer()
 			}
-			h.active = refreshActive(h.deps.Root, h.deps.Now())
-			return h, nil
+			return h.doStopwatch()
 		case "t":
-			action, elapsed, err := stopwatch.Toggle(h.deps.Root, h.deps.Now())
-			if err != nil {
-				h.errMsg = err.Error()
-			} else if action == "started" {
-				h.status = "Stopwatch started"
-				h.errMsg = ""
-			} else {
-				h.status = fmt.Sprintf("Stopwatch stopped: %s", duration.Format(elapsed))
-				h.errMsg = ""
-			}
-			h.active = refreshActive(h.deps.Root, h.deps.Now())
-			return h, nil
+			return h.doStopwatch()
 		case "p":
-			return h, func() tea.Msg {
-				return startSessionMsg{Cfg: pomodoro.Config{
-					Focus: 25 * time.Minute, Break: 5 * time.Minute,
-					Long: 15 * time.Minute, Cycles: 4, Auto: false,
-				}}
-			}
+			return h, func() tea.Msg { return openLaunchFormMsg{Kind: formPomodoro} }
 		case "n":
+			// keep picker for generic "new preset", but prefer launch buttons
 			return h, func() tea.Msg { return openPickerMsg{} }
 		case "e":
 			if len(h.items) == 0 {
@@ -144,16 +233,62 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			it := h.items[h.cursor]
 			return h, func() tea.Msg { return openConfirmMsg{Kind: it.Kind, Name: it.Name} }
-		case "enter":
-			return h.startSelected()
 		}
 	}
 	return h, nil
 }
 
+func (h hubModel) activateAction(id actionID) (tea.Model, tea.Cmd) {
+	switch id {
+	case actionNewPomodoro:
+		return h, func() tea.Msg { return openLaunchFormMsg{Kind: formPomodoro} }
+	case actionNewTimer:
+		return h, func() tea.Msg { return openLaunchFormMsg{Kind: formTimer} }
+	case actionStopwatchToggle:
+		return h.doStopwatch()
+	case actionStopTimer:
+		return h.doStopTimer()
+	default:
+		return h, nil
+	}
+}
+
+func (h hubModel) doStopTimer() (tea.Model, tea.Cmd) {
+	if err := timer.Stop(h.deps.Root); err != nil {
+		h.errMsg = err.Error()
+	} else {
+		h.status = "Timer stopped"
+		h.errMsg = ""
+		h.notice = ""
+		h.alerting = false
+		notify.StopAlert()
+	}
+	h.active = refreshActive(h.deps.Root, h.deps.Now())
+	btns := hubActionButtons(h.active)
+	if h.actionCursor >= len(btns) && len(btns) > 0 {
+		h.actionCursor = len(btns) - 1
+	}
+	return h, nil
+}
+
+func (h hubModel) doStopwatch() (tea.Model, tea.Cmd) {
+	action, elapsed, err := stopwatch.Toggle(h.deps.Root, h.deps.Now())
+	if err != nil {
+		h.errMsg = err.Error()
+	} else if action == "started" {
+		h.status = "Stopwatch started"
+		h.errMsg = ""
+	} else {
+		h.status = fmt.Sprintf("Stopwatch stopped: %s", duration.Format(elapsed))
+		h.errMsg = ""
+	}
+	h.active = refreshActive(h.deps.Root, h.deps.Now())
+	return h, nil
+}
+
 func (h hubModel) startSelected() (tea.Model, tea.Cmd) {
 	if len(h.items) == 0 {
-		h.errMsg = "no presets — press n to create"
+		h.errMsg = "no preset selected — use New Pomodoro / New Timer, or Enter on a preset"
 		return h, nil
 	}
 	it := h.items[h.cursor]
@@ -176,88 +311,109 @@ func (h hubModel) startSelected() (tea.Model, tea.Cmd) {
 		if it.Tim == nil {
 			return h, nil
 		}
-		exe, err := h.deps.Exe()
-		if err != nil {
-			h.errMsg = err.Error()
-			return h, nil
-		}
-		d := time.Duration(it.Tim.Seconds) * time.Second
-		if err := timer.Start(h.deps.Root, d, it.Name, exe, []string{"timer", "--worker"}); err != nil {
-			h.errMsg = err.Error()
-			return h, nil
-		}
-		h.status = fmt.Sprintf("Timer started: %s (%s)", it.Name, duration.Format(d))
-		h.errMsg = ""
-		h.active = refreshActive(h.deps.Root, h.deps.Now())
-		return h, nil
+		return h.startTimer(time.Duration(it.Tim.Seconds)*time.Second, it.Name)
 	}
 	return h, nil
 }
 
+func (h hubModel) startTimer(d time.Duration, label string) (tea.Model, tea.Cmd) {
+	exe, err := h.deps.Exe()
+	if err != nil {
+		h.errMsg = err.Error()
+		return h, nil
+	}
+	if err := timer.Start(h.deps.Root, d, label, exe, []string{"timer", "--worker"}); err != nil {
+		h.errMsg = err.Error()
+		return h, nil
+	}
+	h.status = fmt.Sprintf("Timer started: %s (%s)", label, duration.Format(d))
+	h.errMsg = ""
+	h.active = refreshActive(h.deps.Root, h.deps.Now())
+	return h, nil
+}
+
 func (h hubModel) View() string {
-	w := h.width
+	w, ht := h.width, h.height
 	if w <= 0 {
 		w = 80
 	}
-	inner := w - 4
-	if inner < 20 {
-		inner = 20
+	if ht <= 0 {
+		ht = 24
+	}
+	panelW := w - 8
+	if panelW > 72 {
+		panelW = 72
+	}
+	if panelW < 28 {
+		panelW = max(20, w-4)
 	}
 
-	activePanel := stylePanel.Width(inner).Render(styleTitle.Render("Active") + "\n" + renderActive(h.active))
-	presetsPanel := stylePanel.Width(inner).Render(styleTitle.Render("Presets") + "\n" + renderPresets(h.items, h.cursor))
+	btns := hubActionButtons(h.active)
+	if h.actionCursor >= len(btns) && len(btns) > 0 {
+		h.actionCursor = len(btns) - 1
+	}
+	actions := wrapActionBar(btns, h.actionCursor, h.focus == focusActions, panelW, w)
+	activePanel := panelBox("Active", renderActive(h.active), panelW)
+	presetsPanel := panelBoxFocused("Presets", renderPresets(h.items, h.cursor, h.focus == focusPresets), panelW, h.focus == focusPresets)
+	noticePanel := renderNotice(h.notice, panelW)
 
-	var b strings.Builder
-	b.WriteString(styleTitle.Render("Clocky"))
-	b.WriteString("\n")
-	b.WriteString(activePanel)
-	b.WriteString("\n")
-	b.WriteString(presetsPanel)
-	b.WriteString("\n")
+	var statusLine string
 	if h.errMsg != "" {
-		b.WriteString(styleError.Render(h.errMsg))
-		b.WriteString("\n")
-	} else if h.status != "" {
-		b.WriteString(styleOK.Render(h.status))
-		b.WriteString("\n")
+		statusLine = styleError.Render(h.errMsg)
+	} else if h.status != "" && h.status != h.notice {
+		statusLine = styleOK.Render(h.status)
 	}
-	b.WriteString(styleMuted.Render("↑↓ select  ↵ start  n new  e edit  d delete  s stop timer  t stopwatch  p pomodoro  q quit"))
-	return b.String()
+
+	body := joinPanels(noticePanel, actions, activePanel, presetsPanel, statusLine)
+	footer := "←→ actions  ↑↓ presets  enter  space action  esc stop alarm  e edit  d delete  q quit"
+	return fillFrame(w, ht, "hub", body, footer)
 }
 
 func renderActive(a activeSnapshot) string {
+	on := styleOK.Render("●")
+	off := styleDim.Render("○")
+	name := func(s string) string { return fmt.Sprintf("%-10s", s) }
 	var lines []string
 	if a.TimerActive {
 		label := a.TimerLabel
 		if label == "" {
 			label = "timer"
 		}
-		lines = append(lines, fmt.Sprintf("[*] Timer      %-12s  %s remaining", label, duration.Format(a.TimerRemaining)))
+		if a.TimerRemaining == 0 {
+			lines = append(lines, on+" "+name("Timer")+" "+stylePaused.Render("FINISHED")+"  "+styleMuted.Render(label))
+		} else {
+			lines = append(lines, on+" "+name("Timer")+" "+styleOK.Render(duration.Format(a.TimerRemaining)+" left")+"  "+styleMuted.Render(label))
+		}
 	} else {
-		lines = append(lines, "[ ] Timer      idle")
+		lines = append(lines, off+" "+name("Timer")+" "+styleMuted.Render("idle"))
 	}
 	if a.StopwatchRunning {
-		lines = append(lines, fmt.Sprintf("[*] Stopwatch                %s elapsed", duration.Format(a.StopwatchElapsed)))
+		lines = append(lines, on+" "+name("Stopwatch")+" "+styleOK.Render(duration.Format(a.StopwatchElapsed)+" elapsed"))
 	} else {
-		lines = append(lines, "[ ] Stopwatch  idle")
+		lines = append(lines, off+" "+name("Stopwatch")+" "+styleMuted.Render("idle"))
 	}
-	lines = append(lines, "[ ] Pomodoro   idle (p or Enter on preset)")
+	lines = append(lines, off+" "+name("Pomodoro")+" "+styleMuted.Render("idle — New Pomodoro or start a preset"))
 	return strings.Join(lines, "\n")
 }
 
-func renderPresets(items []presetItem, cursor int) string {
+func renderPresets(items []presetItem, cursor int, focused bool) string {
 	if len(items) == 0 {
-		return styleMuted.Render("(none — press n to create)")
+		return styleMuted.Render("(none — use New Pomodoro / New Timer)")
 	}
 	var b strings.Builder
 	for i, it := range items {
-		prefix := "  "
-		line := fmt.Sprintf("%-12s  %s", it.Name, it.Summary)
-		if i == cursor {
-			prefix = "> "
-			b.WriteString(styleSel.Render(prefix + line))
-		} else {
-			b.WriteString(prefix + line)
+		icon := "◔"
+		if it.Kind == kindPomodoro {
+			icon = "◷"
+		}
+		line := fmt.Sprintf("%s %-12s  %s", icon, it.Name, it.Summary)
+		switch {
+		case focused && i == cursor:
+			b.WriteString(styleSel.Render("▸ " + line + " "))
+		case i == cursor:
+			b.WriteString("▹ " + line)
+		default:
+			b.WriteString("  " + line)
 		}
 		b.WriteString("\n")
 	}

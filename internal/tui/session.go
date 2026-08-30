@@ -5,10 +5,11 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/LuizFer1/Clocky/internal/clockface"
 	"github.com/LuizFer1/Clocky/internal/notify"
 	"github.com/LuizFer1/Clocky/internal/pomodoro"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type sessionDoneMsg struct{}
@@ -23,13 +24,17 @@ type sessionModel struct {
 	paused       bool
 	waitingEnter bool
 	width        int
+	height       int
 	status       string
 	notifier     notify.Notifier
 }
 
-func newSessionModel(cfg pomodoro.Config, width int, n notify.Notifier) sessionModel {
+func newSessionModel(cfg pomodoro.Config, width, height int, n notify.Notifier) sessionModel {
 	if width <= 0 {
-		width = 40
+		width = 80
+	}
+	if height <= 0 {
+		height = 24
 	}
 	if n == nil {
 		n = notify.Default{}
@@ -39,6 +44,7 @@ func newSessionModel(cfg pomodoro.Config, width int, n notify.Notifier) sessionM
 		cfg:      cfg,
 		phases:   phases,
 		width:    width,
+		height:   height,
 		notifier: n,
 	}
 	if len(phases) > 0 {
@@ -60,6 +66,7 @@ func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.width = msg.Width
+		s.height = msg.Height
 		return s, nil
 	case tickMsg:
 		if s.waitingEnter || s.paused || len(s.phases) == 0 {
@@ -142,37 +149,103 @@ func (s sessionModel) advanceAfterWait() (tea.Model, tea.Cmd) {
 }
 
 func (s sessionModel) View() string {
+	w, ht := s.width, s.height
+	if w <= 0 {
+		w = 80
+	}
+	if ht <= 0 {
+		ht = 24
+	}
+	footer := "space pause  n skip/next  esc/b hub  q quit"
 	if len(s.phases) == 0 {
-		return "No phases configured.\n\nesc/b back  q quit"
+		return fillFrame(w, ht, "Pomodoro", styleMuted.Render("No phases configured."), footer)
 	}
 	phase := s.phases[s.index]
-	face := clockface.Render(s.remaining, s.total, s.width)
-	compact := clockface.RenderCompact(phase.Name, phase.Cycle, s.cfg.Cycles, s.remaining)
-	barWidth := 24
-	if s.width > 0 && s.width < barWidth+4 {
-		barWidth = max(8, s.width-4)
+	// Size the ASCII face for the available width (leave room for frame chrome).
+	faceW := w - 6
+	if faceW < 15 {
+		faceW = w
 	}
+	if faceW > 51 {
+		faceW = 51
+	}
+	face := colorFace(clockface.Render(s.remaining, s.total, faceW), phase.Name)
+	compact := phaseLine(phase.Name, phase.Cycle, s.cfg.Cycles, s.remaining)
+	barWidth := min(36, max(16, faceW-4))
 	bar := progressBar(s.remaining, s.total, barWidth)
-	var b strings.Builder
-	b.WriteString(styleTitle.Render("Pomodoro session"))
-	b.WriteString("\n\n")
-	b.WriteString(face)
-	b.WriteString("\n")
-	b.WriteString(compact)
-	b.WriteString("\n")
-	b.WriteString(bar)
-	b.WriteString("\n")
+
+	parts := []string{face, "", compact, bar}
 	if s.paused {
-		b.WriteString(stylePaused.Render("PAUSED"))
-		b.WriteString("\n")
+		parts = append(parts, "", stylePaused.Render("◆ PAUSED ◆"))
 	}
 	if s.status != "" {
-		b.WriteString(styleMuted.Render(s.status))
-		b.WriteString("\n")
+		parts = append(parts, "", styleMuted.Render(s.status))
 	}
-	b.WriteString("\n")
-	b.WriteString(styleMuted.Render("space pause  n skip/next  esc/b hub  q quit"))
+	body := lipglossJoin(parts...)
+	return fillFrame(w, ht, "Pomodoro", body, footer)
+}
+
+// phaseColor picks the accent for a pomodoro phase.
+func phaseColor(name string) lipgloss.Color {
+	switch name {
+	case "FOCUS":
+		return colAccent2
+	case "BREAK":
+		return colOK
+	default:
+		return colWarn
+	}
+}
+
+// phaseLine renders "● FOCUS  1/4  24:48" with the phase accent.
+func phaseLine(name string, cycle, cycles int, remaining time.Duration) string {
+	acc := lipgloss.NewStyle().Bold(true).Foreground(phaseColor(name))
+	timeStyle := lipgloss.NewStyle().Bold(true).Foreground(colText)
+	sec := int64(remaining / time.Second)
+	return acc.Render("● "+name) +
+		styleMuted.Render(fmt.Sprintf("  %d/%d  ", cycle, cycles)) +
+		timeStyle.Render(fmt.Sprintf("%02d:%02d", sec/60, sec%60))
+}
+
+// colorFace applies colours to the plain clockface by glyph class.
+func colorFace(face, phase string) string {
+	num := lipgloss.NewStyle().Bold(true).Foreground(colAccent)
+	minute := lipgloss.NewStyle().Bold(true).Foreground(phaseColor(phase))
+	center := lipgloss.NewStyle().Bold(true).Foreground(colText)
+
+	var b strings.Builder
+	for _, r := range face {
+		switch {
+		case r == '\n' || r == ' ':
+			b.WriteRune(r)
+		case r == clockface.RimRune:
+			b.WriteString(styleDim.Render(string(r)))
+		case r == clockface.TickRune:
+			b.WriteString(styleMuted.Render(string(r)))
+		case r == clockface.CenterRune:
+			b.WriteString(center.Render(string(r)))
+		case r >= '0' && r <= '9':
+			b.WriteString(num.Render(string(r)))
+		case strings.ContainsRune(clockface.MinuteHandRunes, r):
+			b.WriteString(minute.Render(string(r)))
+		case strings.ContainsRune(clockface.SecondHandRunes, r):
+			b.WriteString(styleMuted.Render(string(r)))
+		default:
+			b.WriteRune(r)
+		}
+	}
 	return b.String()
+}
+
+func lipglossJoin(parts ...string) string {
+	return strings.Join(parts, "\n")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func progressBar(remaining, total time.Duration, width int) string {
@@ -193,7 +266,8 @@ func progressBar(remaining, total time.Duration, width int) string {
 	if filled > width {
 		filled = width
 	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	fill := lipgloss.NewStyle().Foreground(colAccent).Render(strings.Repeat("━", filled))
+	return fill + styleDim.Render(strings.Repeat("╌", width-filled))
 }
 
 func phaseEndTitleBody(phase pomodoro.Phase) (title, body string) {

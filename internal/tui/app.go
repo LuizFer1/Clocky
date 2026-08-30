@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -67,12 +68,18 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.hub.width = msg.Width
-		if m.page == pageSession {
-			m.session.width = msg.Width
-		}
+		m.hub.height = msg.Height
+		m.session.width = msg.Width
+		m.session.height = msg.Height
+		m.form.width = msg.Width
+		m.form.height = msg.Height
+		m.confirm.width = msg.Width
+		m.confirm.height = msg.Height
+		m.picker.width = msg.Width
+		m.picker.height = msg.Height
 		return m, nil
 	case startSessionMsg:
-		m.session = newSessionModel(msg.Cfg, m.width, nil)
+		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
 		m.page = pageSession
 		return m, m.session.Init()
 	case sessionDoneMsg, sessionAbortMsg:
@@ -82,6 +89,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, scheduleTick()
 	case openPickerMsg:
 		m.picker = newPickerModel()
+		m.picker.width, m.picker.height = m.width, m.height
 		m.page = pagePicker
 		return m, nil
 	case pickerCancelMsg:
@@ -94,6 +102,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case formTimer:
 			m.form = newTimerForm(m.deps.Root, nil)
 		}
+		m.form.width, m.form.height = m.width, m.height
 		m.page = pageForm
 		return m, nil
 	case openFormMsg:
@@ -103,6 +112,17 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case formTimer:
 			m.form = newTimerForm(m.deps.Root, msg.Tim)
 		}
+		m.form.width, m.form.height = m.width, m.height
+		m.page = pageForm
+		return m, nil
+	case openLaunchFormMsg:
+		switch msg.Kind {
+		case formPomodoro:
+			m.form = newLaunchPomodoroForm(m.deps.Root)
+		case formTimer:
+			m.form = newLaunchTimerForm(m.deps.Root)
+		}
+		m.form.width, m.form.height = m.width, m.height
 		m.page = pageForm
 		return m, nil
 	case formSavedMsg:
@@ -111,6 +131,27 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.hub.status = "Preset saved"
 		m.hub.errMsg = ""
 		return m, scheduleTick()
+	case formLaunchPomodoroMsg:
+		m.page = pageHub
+		m.hub.reload()
+		if msg.SavedPreset {
+			m.hub.status = "Preset saved · starting pomodoro"
+		} else {
+			m.hub.status = "Starting pomodoro"
+		}
+		m.hub.errMsg = ""
+		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
+		m.page = pageSession
+		return m, m.session.Init()
+	case formLaunchTimerMsg:
+		m.page = pageHub
+		m.hub.reload()
+		mod, _ := m.hub.startTimer(msg.Duration, msg.Label)
+		m.hub = mod.(hubModel)
+		if msg.SavedPreset {
+			m.hub.status = fmt.Sprintf("Preset saved · timer started: %s", msg.Label)
+		}
+		return m, scheduleTick()
 	case formCancelMsg:
 		m.page = pageHub
 		return m, scheduleTick()
@@ -118,6 +159,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pendingKind = msg.Kind
 		m.pendingName = msg.Name
 		m.confirm = newConfirmModel(msg.Kind, msg.Name)
+		m.confirm.width, m.confirm.height = m.width, m.height
 		m.page = pageConfirm
 		return m, nil
 	case confirmResultMsg:

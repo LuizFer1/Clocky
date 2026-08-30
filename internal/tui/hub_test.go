@@ -5,8 +5,18 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/LuizFer1/Clocky/internal/stopwatch"
 )
+
+func TestHubViewFillsTerminal(t *testing.T) {
+	h := newHubModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+	h.width, h.height = 100, 40
+	view := h.View()
+	if lipgloss.Height(view) != 40 {
+		t.Fatalf("height=%d want 40", lipgloss.Height(view))
+	}
+}
 
 func TestHubToggleStopwatch(t *testing.T) {
 	root := t.TempDir()

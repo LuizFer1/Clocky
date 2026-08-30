@@ -15,11 +15,11 @@ func TestRenderDefaultSizeIsLarger(t *testing.T) {
 	if len(lines[0]) < 31 {
 		t.Fatalf("expected width >=31, got %d:\n%s", len(lines[0]), got)
 	}
-	if !strings.Contains(got, "o") && !strings.Contains(got, ".") {
+	if !strings.ContainsRune(got, RimRune) {
 		t.Fatalf("expected rim characters in:\n%s", got)
 	}
-	if !strings.Contains(got, "+") {
-		t.Fatalf("expected center + in:\n%s", got)
+	if !strings.ContainsRune(got, CenterRune) {
+		t.Fatalf("expected center glyph in:\n%s", got)
 	}
 }
 
@@ -79,4 +79,3 @@ func TestRenderCompactContainsPhaseAndTime(t *testing.T) {
 		t.Fatalf("missing MM:SS: %q", got)
 	}
 }
-
