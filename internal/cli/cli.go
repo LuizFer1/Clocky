@@ -16,6 +16,10 @@ func Run(args []string) error {
 	case "help", "-h", "--help":
 		printHelp()
 		return nil
+	case "version":
+		return runVersion(args[1:])
+	case "update":
+		return runUpdate(args[1:])
 	case "pomodoro":
 		return runPomodoro(args[1:])
 	case "timer":
@@ -59,6 +63,8 @@ Usage:
   clocky list [pomodoro|timer]
   clocky remove <pomodoro|timer> <name>
   clocky status
+  clocky version
+  clocky update [--yes] [--check]
   clocky help
 
 Pomodoro flags:
