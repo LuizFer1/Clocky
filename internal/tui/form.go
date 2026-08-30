@@ -8,11 +8,27 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/LuizFer1/Clocky/internal/duration"
+	"github.com/LuizFer1/Clocky/internal/pomodoro"
 	"github.com/LuizFer1/Clocky/internal/presets"
 )
 
 type formSavedMsg struct{}
 type formCancelMsg struct{}
+
+// formLaunchPomodoroMsg starts a session (and may have saved a preset).
+type formLaunchPomodoroMsg struct {
+	Cfg        pomodoro.Config
+	SavedName  string
+	SavedPreset bool
+}
+
+// formLaunchTimerMsg starts a background timer (and may have saved a preset).
+type formLaunchTimerMsg struct {
+	Duration    time.Duration
+	Label       string
+	SavedName   string
+	SavedPreset bool
+}
 
 type formKind int
 
@@ -21,9 +37,17 @@ const (
 	formTimer
 )
 
+type formMode int
+
+const (
+	formModePreset formMode = iota // create/edit preset only
+	formModeLaunch                // configure + start (+ optional save)
+)
+
 type formModel struct {
 	root    string
 	kind    formKind
+	mode    formMode
 	editing bool
 	fields  []string
 	labels  []string
@@ -38,6 +62,7 @@ func newPomodoroForm(root string, existing *presets.PomodoroPreset) formModel {
 	f := formModel{
 		root:   root,
 		kind:   formPomodoro,
+		mode:   formModePreset,
 		title:  "New pomodoro preset",
 		labels: []string{"Name", "Focus (min)", "Break (min)", "Long (min)", "Cycles", "Auto (y/n)"},
 		fields: []string{"", "25", "5", "15", "4", "n"},
@@ -65,6 +90,7 @@ func newTimerForm(root string, existing *presets.TimerPreset) formModel {
 	f := formModel{
 		root:   root,
 		kind:   formTimer,
+		mode:   formModePreset,
 		title:  "New timer preset",
 		labels: []string{"Name", "Duration (H:M:S)"},
 		fields: []string{"", ":25:"},
@@ -80,6 +106,42 @@ func newTimerForm(root string, existing *presets.TimerPreset) formModel {
 	return f
 }
 
+// newLaunchPomodoroForm configures a pomodoro then starts it.
+// Optional name saves a preset when non-empty.
+func newLaunchPomodoroForm(root string) formModel {
+	return formModel{
+		root:  root,
+		kind:  formPomodoro,
+		mode:  formModeLaunch,
+		title: "New Pomodoro",
+		labels: []string{
+			"Focus (min)",
+			"Break (min)",
+			"Long break (min)",
+			"Cycles",
+			"Auto (y/n)",
+			"Save as preset (optional name)",
+		},
+		fields: []string{"25", "5", "15", "4", "n", ""},
+	}
+}
+
+// newLaunchTimerForm configures a timer then starts it.
+func newLaunchTimerForm(root string) formModel {
+	return formModel{
+		root:  root,
+		kind:  formTimer,
+		mode:  formModeLaunch,
+		title: "New Timer",
+		labels: []string{
+			"Duration (H:M:S)",
+			"Label (optional)",
+			"Save as preset (optional name)",
+		},
+		fields: []string{":25:", "", ""},
+	}
+}
+
 func (f formModel) Init() tea.Cmd { return nil }
 
 func (f formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -89,6 +151,14 @@ func (f formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			return f, func() tea.Msg { return formCancelMsg{} }
 		case "enter":
+			if f.mode == formModeLaunch {
+				cmd, err := f.submitLaunch()
+				if err != nil {
+					f.errMsg = err.Error()
+					return f, nil
+				}
+				return f, cmd
+			}
 			if err := f.save(); err != nil {
 				f.errMsg = err.Error()
 				return f, nil
@@ -115,6 +185,80 @@ func (f formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return f, nil
+}
+
+func (f formModel) submitLaunch() (tea.Cmd, error) {
+	switch f.kind {
+	case formPomodoro:
+		focus, err := strconv.Atoi(strings.TrimSpace(f.fields[0]))
+		if err != nil || focus <= 0 {
+			return nil, fmt.Errorf("invalid focus minutes")
+		}
+		brk, err := strconv.Atoi(strings.TrimSpace(f.fields[1]))
+		if err != nil || brk <= 0 {
+			return nil, fmt.Errorf("invalid break minutes")
+		}
+		long, err := strconv.Atoi(strings.TrimSpace(f.fields[2]))
+		if err != nil || long <= 0 {
+			return nil, fmt.Errorf("invalid long minutes")
+		}
+		cycles, err := strconv.Atoi(strings.TrimSpace(f.fields[3]))
+		if err != nil || cycles < 1 {
+			return nil, fmt.Errorf("cycles must be >= 1")
+		}
+		autoRaw := strings.ToLower(strings.TrimSpace(f.fields[4]))
+		auto := autoRaw == "y" || autoRaw == "yes" || autoRaw == "true" || autoRaw == "1"
+		saveName := strings.TrimSpace(f.fields[5])
+		saved := false
+		if saveName != "" {
+			if err := savePomodoroPreset(f.root, presets.PomodoroPreset{
+				Name: saveName, Focus: focus, Break: brk, Long: long, Cycles: cycles, Auto: auto,
+			}); err != nil {
+				return nil, err
+			}
+			saved = true
+		}
+		msg := formLaunchPomodoroMsg{
+			Cfg: pomodoro.Config{
+				Focus:  time.Duration(focus) * time.Minute,
+				Break:  time.Duration(brk) * time.Minute,
+				Long:   time.Duration(long) * time.Minute,
+				Cycles: cycles,
+				Auto:   auto,
+			},
+			SavedName:   saveName,
+			SavedPreset: saved,
+		}
+		return func() tea.Msg { return msg }, nil
+	case formTimer:
+		d, err := duration.Parse(strings.TrimSpace(f.fields[0]))
+		if err != nil {
+			return nil, err
+		}
+		label := strings.TrimSpace(f.fields[1])
+		saveName := strings.TrimSpace(f.fields[2])
+		saved := false
+		if saveName != "" {
+			if err := saveTimerPreset(f.root, presets.TimerPreset{
+				Name: saveName, Seconds: int64(d / time.Second),
+			}); err != nil {
+				return nil, err
+			}
+			saved = true
+			if label == "" {
+				label = saveName
+			}
+		}
+		if label == "" {
+			label = duration.Format(d)
+		}
+		msg := formLaunchTimerMsg{
+			Duration: d, Label: label, SavedName: saveName, SavedPreset: saved,
+		}
+		return func() tea.Msg { return msg }, nil
+	default:
+		return nil, fmt.Errorf("unknown form")
+	}
 }
 
 func (f formModel) save() error {
@@ -190,5 +334,11 @@ func (f formModel) View() string {
 		b.WriteString(styleError.Render(f.errMsg))
 	}
 	body := panelBox(f.title, strings.TrimRight(b.String(), "\n"), panelW)
-	return fillFrame(w, ht, "Clocky  ·  preset", body, "tab fields  enter save  esc cancel")
+	sub := "Clocky  ·  preset"
+	foot := "tab fields  enter save  esc cancel"
+	if f.mode == formModeLaunch {
+		sub = "Clocky  ·  start"
+		foot = "tab fields  enter start  esc cancel"
+	}
+	return fillFrame(w, ht, sub, body, foot)
 }

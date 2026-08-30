@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -114,11 +115,42 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form.width, m.form.height = m.width, m.height
 		m.page = pageForm
 		return m, nil
+	case openLaunchFormMsg:
+		switch msg.Kind {
+		case formPomodoro:
+			m.form = newLaunchPomodoroForm(m.deps.Root)
+		case formTimer:
+			m.form = newLaunchTimerForm(m.deps.Root)
+		}
+		m.form.width, m.form.height = m.width, m.height
+		m.page = pageForm
+		return m, nil
 	case formSavedMsg:
 		m.page = pageHub
 		m.hub.reload()
 		m.hub.status = "Preset saved"
 		m.hub.errMsg = ""
+		return m, scheduleTick()
+	case formLaunchPomodoroMsg:
+		m.page = pageHub
+		m.hub.reload()
+		if msg.SavedPreset {
+			m.hub.status = "Preset saved · starting pomodoro"
+		} else {
+			m.hub.status = "Starting pomodoro"
+		}
+		m.hub.errMsg = ""
+		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
+		m.page = pageSession
+		return m, m.session.Init()
+	case formLaunchTimerMsg:
+		m.page = pageHub
+		m.hub.reload()
+		mod, _ := m.hub.startTimer(msg.Duration, msg.Label)
+		m.hub = mod.(hubModel)
+		if msg.SavedPreset {
+			m.hub.status = fmt.Sprintf("Preset saved · timer started: %s", msg.Label)
+		}
 		return m, scheduleTick()
 	case formCancelMsg:
 		m.page = pageHub
