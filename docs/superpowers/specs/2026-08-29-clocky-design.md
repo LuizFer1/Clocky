@@ -10,8 +10,10 @@ Clocky is a simple cross-platform terminal time-management tool with:
 
 - Pomodoro (foreground, ASCII analog clock)
 - Timer (background, notifies on completion)
-- Stopwatch / cronômetro (toggle start/stop)
+- Stopwatch (toggle start/stop)
 - Named presets via `clocky add`
+
+**Locale:** CLI commands, help, errors, and on-screen labels use **English** (international default).
 
 ## Approach
 
@@ -27,7 +29,7 @@ clocky
 ├── internal/
 │   ├── pomodoro/         # cycle logic, phase transitions
 │   ├── timer/            # background countdown, stop, completion
-│   ├── stopwatch/        # cronômetro start/stop toggle
+│   ├── stopwatch/        # stopwatch start/stop toggle
 │   ├── presets/          # add / list / remove named pomodoros & timers
 │   ├── duration/         # flexible H:M:S parsing and normalization
 │   ├── clockface/        # ASCII analog clock face renderer
@@ -86,7 +88,7 @@ clocky timer Break
 clocky timer --stop
 ```
 
-### `clocky cronometro`
+### `clocky stopwatch`
 
 - **Toggle.** First call writes `started_at` to `stopwatch.json` and prints that it started.
 - Second call computes elapsed, prints `HH:MM:SS`, clears state.
@@ -132,7 +134,7 @@ Shows:
 
 ### `clocky help` / bare `clocky`
 
-Print usage in Portuguese.
+Print usage in English.
 
 ## Duration parsing (`internal/duration`)
 
@@ -159,7 +161,7 @@ Canonical storage: total seconds (`time.Duration`).
 
 Display helper always prints normalized `HH:MM:SS` (hours may exceed 24 if needed, no day field in MVP).
 
-Invalid input → non-zero exit and Portuguese usage hint.
+Invalid input → non-zero exit and English usage hint.
 
 **Note:** Flag spelling is `--break` (not `--breack`).
 
@@ -181,17 +183,17 @@ Between pomodoro phases without `--auto`, wait for Enter after notification.
 ## ASCII analog clock (`internal/clockface`)
 
 - Face ~21×11 characters with minute (and second if readable) hands recomputed each tick
-- Below face: phase label (`FOCO` / `PAUSA` / `PAUSA LONGA`), cycle `i/n`, remaining `MM:SS`
+- Below face: phase label (`FOCUS` / `BREAK` / `LONG BREAK`), cycle `i/n`, remaining `MM:SS`
 - Redraw in-place via ANSI cursor home/clear-line (no infinite scroll)
 - Narrow terminal fallback: phase + digits only, skip face
 
 ## Error handling
 
-Messages in Portuguese. Non-zero exit on invalid usage.
+Messages in English. Non-zero exit on invalid usage.
 
 Examples:
 
-- Bad duration → `uso: clocky timer <H:M:S|nome>`
+- Bad duration → `usage: clocky timer <H:M:S|name>`
 - Timer already running → suggest `clocky status` and `clocky timer --stop`
 - Unknown preset name → list hint via `clocky list`
 - Missing `--name` on add → usage error
@@ -210,7 +212,7 @@ Examples:
 
 - CLI: add preset → run by name (pomodoro with 1s focus in test helper / injectable clock)
 - CLI: timer 1s background → status → completion path (notify mocked)
-- CLI: cronometro twice
+- CLI: stopwatch twice
 
 Do not require a real desktop notification server in CI; mock `notify` interface.
 
