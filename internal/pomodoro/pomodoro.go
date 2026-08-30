@@ -9,6 +9,7 @@ import (
 
 	"github.com/LuizFer1/Clocky/internal/clockface"
 	"github.com/LuizFer1/Clocky/internal/notify"
+	"github.com/LuizFer1/Clocky/internal/termui"
 )
 
 // Config holds pomodoro timing and behavior.
@@ -104,7 +105,7 @@ func runPhase(cfg Config, phase Phase, h Hooks) error {
 		total = time.Second
 	}
 	for remaining > 0 {
-		if _, err := fmt.Fprint(h.Out, "\033[H\033[2J"); err != nil {
+		if err := termui.Clear(h.Out); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprint(h.Out, clockface.Render(remaining, total, h.Width)); err != nil {

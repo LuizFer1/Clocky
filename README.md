@@ -162,10 +162,21 @@ When a pomodoro phase ends or a timer finishes, Clocky:
 
 ## Development
 
+Use a separate binary name so local builds do not overwrite an installed release `clocky`:
+
 ```bash
 go test ./...
-go build -o clocky ./cmd/clocky
+
+# Windows (PowerShell)
+.\scripts\build-dev.ps1
+.\clockyDEV.exe pomodoro --focus 1 --cycles 1 --auto
+
+# macOS / Linux
+./scripts/build-dev.sh
+./clockyDEV pomodoro --focus 1 --cycles 1 --auto
 ```
+
+Or manually: `go build -o clockyDEV.exe ./cmd/clocky` (Windows) / `go build -o clockyDEV ./cmd/clocky` (Unix).
 
 Design notes: [`docs/superpowers/specs/2026-08-29-clocky-design.md`](docs/superpowers/specs/2026-08-29-clocky-design.md)
 
