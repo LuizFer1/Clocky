@@ -4,11 +4,15 @@ import (
 	"fmt"
 
 	"github.com/LuizFer1/Clocky/internal/state"
+	"github.com/LuizFer1/Clocky/internal/tui"
 )
 
 // Run dispatches clocky subcommands.
 func Run(args []string) error {
 	if len(args) == 0 {
+		if isInteractive() {
+			return tui.Run()
+		}
 		printHelp()
 		return nil
 	}
@@ -54,6 +58,7 @@ func printHelp() {
 	fmt.Print(`Clocky — terminal time manager
 
 Usage:
+  clocky                 Open the Terminal UI (interactive terminal)
   clocky pomodoro [name] [flags]
   clocky timer <duration|name>
   clocky timer --stop
