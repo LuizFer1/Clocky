@@ -31,9 +31,17 @@ func Start(root string, d time.Duration, label string, exe string, workerArgs []
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	// Stale file is overwritten after a successful spawn.
-
+	// Stale file is overwritten. Write before spawn so the worker never races.
 	if err := state.EnsureDir(root); err != nil {
+		return err
+	}
+
+	st := State{
+		Deadline: time.Now().Add(d),
+		PID:      0,
+		Label:    label,
+	}
+	if err := state.WriteJSON(path, st); err != nil {
 		return err
 	}
 
@@ -42,20 +50,17 @@ func Start(root string, d time.Duration, label string, exe string, workerArgs []
 	detach(cmd)
 
 	if err := cmd.Start(); err != nil {
+		_ = os.Remove(path)
 		return err
 	}
-	pid := cmd.Process.Pid
+	st.PID = cmd.Process.Pid
 	_ = cmd.Process.Release()
 
-	st := State{
-		Deadline: time.Now().Add(d),
-		PID:      pid,
-		Label:    label,
-	}
 	if err := state.WriteJSON(path, st); err != nil {
-		if p, findErr := os.FindProcess(pid); findErr == nil {
+		if p, findErr := os.FindProcess(st.PID); findErr == nil {
 			_ = p.Kill()
 		}
+		_ = os.Remove(path)
 		return err
 	}
 	return nil
