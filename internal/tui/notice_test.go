@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestTimerFinishedNoticeOnClear(t *testing.T) {
@@ -43,19 +45,33 @@ func TestTimerFinishedNoticeIgnoresIdle(t *testing.T) {
 func TestHubTickSetsNotice(t *testing.T) {
 	h := newHubModel(Dependencies{Root: t.TempDir(), Now: time.Now})
 	h.active = activeSnapshot{TimerActive: true, TimerRemaining: 2 * time.Second, TimerLabel: "Break"}
-	// Simulate next refresh by patching via Update after manually setting prev through tick path:
-	// call timerFinishedNotice path by constructing tick with swapped state in Update.
 	prev := h.active
 	h.active = activeSnapshot{}
 	if msg, ok := timerFinishedNotice(prev, h.active, h.status); ok {
 		h.notice = msg
 		h.status = msg
+		h.alerting = true
 	}
 	if h.notice != "Timer finished: Break" {
 		t.Fatalf("notice=%q", h.notice)
 	}
+	if !h.alerting {
+		t.Fatal("expected alerting")
+	}
 	view := h.View()
 	if !strings.Contains(view, "Timer finished: Break") {
 		t.Fatalf("view missing notice:\n%s", view)
+	}
+}
+
+func TestEscStopsAlarm(t *testing.T) {
+	h := newHubModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+	h.notice = "Timer finished: Break"
+	h.status = h.notice
+	h.alerting = true
+	m, _ := h.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	h = m.(hubModel)
+	if h.alerting || h.notice != "" {
+		t.Fatalf("alerting=%v notice=%q", h.alerting, h.notice)
 	}
 }

@@ -38,6 +38,6 @@ func renderNotice(msg string, width int) string {
 		Foreground(lipgloss.Color("232")).
 		Background(lipgloss.Color("214")).
 		Padding(0, 1)
-	inner := style.Render("! "+msg) + "\n" + styleMuted.Render("press esc to dismiss")
+	inner := style.Render("! "+msg) + "\n" + styleMuted.Render("alarm sounding — press esc to stop")
 	return panelBox("Notice", inner, width)
 }

@@ -54,6 +54,7 @@ type hubModel struct {
 	status       string
 	errMsg       string
 	notice       string // prominent in-hub alert (e.g. timer finished)
+	alerting     bool   // keep sounding until the user dismisses the notice
 	width        int
 	height       int
 }
@@ -100,19 +101,27 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			h.notice = note
 			h.status = note
 			h.errMsg = ""
-			return h, tea.Batch(scheduleTick(), hubAudioAlert())
+			h.alerting = true
+			return h, tea.Batch(scheduleTick(), hubAudioAlert(), scheduleAlertTick())
 		}
 		return h, scheduleTick()
+	case alertTickMsg:
+		if !h.alerting {
+			return h, nil
+		}
+		return h, tea.Batch(hubAudioAlert(), scheduleAlertTick())
 	case hubAlertMsg:
 		return h, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
+			h.alerting = false
 			return h, tea.Quit
 		case "esc":
-			if h.notice != "" {
+			if h.notice != "" || h.alerting {
 				was := h.notice
 				h.notice = ""
+				h.alerting = false
 				if h.status == was || strings.HasPrefix(h.status, "Timer finished:") {
 					h.status = ""
 				}
@@ -249,6 +258,7 @@ func (h hubModel) doStopTimer() (tea.Model, tea.Cmd) {
 		h.status = "Timer stopped"
 		h.errMsg = ""
 		h.notice = ""
+		h.alerting = false
 	}
 	h.active = refreshActive(h.deps.Root, h.deps.Now())
 	btns := hubActionButtons(h.active)
@@ -352,7 +362,7 @@ func (h hubModel) View() string {
 	}
 
 	body := joinPanels(noticePanel, actions, activePanel, presetsPanel, statusLine)
-	footer := "←→ actions  ↑↓ presets  enter  space action  esc dismiss  e edit  d delete  q quit"
+	footer := "←→ actions  ↑↓ presets  enter  space action  esc stop alarm  e edit  d delete  q quit"
 	return fillFrame(w, ht, "hub", body, footer)
 }
 
