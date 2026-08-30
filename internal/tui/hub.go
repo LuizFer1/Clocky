@@ -6,12 +6,22 @@ import (
 	"time"
 
 	"github.com/LuizFer1/Clocky/internal/duration"
+	"github.com/LuizFer1/Clocky/internal/notify"
 	"github.com/LuizFer1/Clocky/internal/pomodoro"
 	"github.com/LuizFer1/Clocky/internal/presets"
 	"github.com/LuizFer1/Clocky/internal/stopwatch"
 	"github.com/LuizFer1/Clocky/internal/timer"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+type hubAlertMsg struct{}
+
+func hubAudioAlert() tea.Cmd {
+	return func() tea.Msg {
+		notify.Alert()
+		return hubAlertMsg{}
+	}
+}
 
 type startSessionMsg struct {
 	Cfg pomodoro.Config
@@ -86,12 +96,15 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		prev := h.active
 		h.active = refreshActive(h.deps.Root, h.deps.Now())
-		if msg, ok := timerFinishedNotice(prev, h.active, h.status); ok {
-			h.notice = msg
-			h.status = msg
+		if note, ok := timerFinishedNotice(prev, h.active, h.status); ok {
+			h.notice = note
+			h.status = note
 			h.errMsg = ""
+			return h, tea.Batch(scheduleTick(), hubAudioAlert())
 		}
 		return h, scheduleTick()
+	case hubAlertMsg:
+		return h, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
