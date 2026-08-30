@@ -72,7 +72,7 @@ func TestRunHappyPath(t *testing.T) {
 
 	assetURL := "https://example.com/" + assetName
 	checksumURL := "https://example.com/checksums.txt"
-	apiURL := "https://api.github.com/repos/luisf/Clocky/releases/latest"
+	apiURL := "https://api.github.com/repos/LuizFer1/Clocky/releases/latest"
 
 	releaseJSON := fmt.Sprintf(`{
 		"tag_name": "v1.2.0",
@@ -105,7 +105,7 @@ func TestRunHappyPath(t *testing.T) {
 		GOARCH:         goarch,
 		ExePath:        exePath,
 		Getter:         g,
-		Repo:           "luisf/Clocky",
+		Repo:           "LuizFer1/Clocky",
 		Yes:            true,
 		Stdout:         &out,
 	})
@@ -133,7 +133,7 @@ func TestRunHappyPath(t *testing.T) {
 }
 
 func TestRunAlreadyUpToDate(t *testing.T) {
-	apiURL := "https://api.github.com/repos/luisf/Clocky/releases/latest"
+	apiURL := "https://api.github.com/repos/LuizFer1/Clocky/releases/latest"
 	g := mapGetter{
 		apiURL: []byte(`{"tag_name":"v1.2.0","assets":[]}`),
 	}
@@ -144,7 +144,7 @@ func TestRunAlreadyUpToDate(t *testing.T) {
 		GOARCH:         "amd64",
 		ExePath:        filepath.Join(t.TempDir(), "clocky"),
 		Getter:         g,
-		Repo:           "luisf/Clocky",
+		Repo:           "LuizFer1/Clocky",
 		Stdout:         &out,
 	})
 	if err != nil {
@@ -159,7 +159,7 @@ func TestRunAlreadyUpToDate(t *testing.T) {
 }
 
 func TestRunCheckOnlyPending(t *testing.T) {
-	apiURL := "https://api.github.com/repos/luisf/Clocky/releases/latest"
+	apiURL := "https://api.github.com/repos/LuizFer1/Clocky/releases/latest"
 	g := mapGetter{
 		apiURL: []byte(`{"tag_name":"v2.0.0","assets":[]}`),
 	}
@@ -170,7 +170,7 @@ func TestRunCheckOnlyPending(t *testing.T) {
 		GOARCH:         "amd64",
 		ExePath:        filepath.Join(t.TempDir(), "clocky"),
 		Getter:         g,
-		Repo:           "luisf/Clocky",
+		Repo:           "LuizFer1/Clocky",
 		CheckOnly:      true,
 		Stdout:         &out,
 	})
@@ -186,7 +186,7 @@ func TestRunCheckOnlyPending(t *testing.T) {
 }
 
 func TestRunPromptDeclined(t *testing.T) {
-	apiURL := "https://api.github.com/repos/luisf/Clocky/releases/latest"
+	apiURL := "https://api.github.com/repos/LuizFer1/Clocky/releases/latest"
 	g := mapGetter{
 		apiURL: []byte(`{"tag_name":"v2.0.0","assets":[]}`),
 	}
@@ -197,7 +197,7 @@ func TestRunPromptDeclined(t *testing.T) {
 		GOARCH:         "amd64",
 		ExePath:        filepath.Join(t.TempDir(), "clocky"),
 		Getter:         g,
-		Repo:           "luisf/Clocky",
+		Repo:           "LuizFer1/Clocky",
 		Stdout:         &out,
 		Prompt:         func(string) (bool, error) { return false, nil },
 	})

@@ -2,7 +2,7 @@
 # Install Clocky from GitHub Releases into ~/.local/bin (or CLOCKY_INSTALL_DIR).
 set -euo pipefail
 
-REPO="${CLOCKY_GITHUB_REPO:-luisf/Clocky}"
+REPO="${CLOCKY_GITHUB_REPO:-LuizFer1/Clocky}"
 INSTALL_DIR="${CLOCKY_INSTALL_DIR:-${HOME}/.local/bin}"
 API_BASE="https://api.github.com"
 

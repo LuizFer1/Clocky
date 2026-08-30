@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/luisf/clocky/internal/notify"
-	"github.com/luisf/clocky/internal/state"
+	"github.com/LuizFer1/Clocky/internal/notify"
+	"github.com/LuizFer1/Clocky/internal/state"
 )
 
 const fileName = "timer.json"

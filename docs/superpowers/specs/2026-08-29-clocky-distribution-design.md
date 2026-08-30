@@ -65,13 +65,13 @@ Override via env: `CLOCKY_INSTALL_DIR`.
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/<owner>/Clocky/master/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/LuizFer1/Clocky/main/scripts/install.ps1 | iex
 ```
 
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/Clocky/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/LuizFer1/Clocky/main/scripts/install.sh | bash
 ```
 
 ### Script behavior
@@ -91,9 +91,9 @@ Fail closed on checksum mismatch or HTTP errors.
 Build with ldflags so the binary knows its version:
 
 ```text
--X github.com/luisf/clocky/internal/version.Version={{.Version}}
--X github.com/luisf/clocky/internal/version.Commit={{.ShortCommit}}
--X github.com/luisf/clocky/internal/version.Date={{.Date}}
+-X github.com/LuizFer1/Clocky/internal/version.Version={{.Version}}
+-X github.com/LuizFer1/Clocky/internal/version.Commit={{.ShortCommit}}
+-X github.com/LuizFer1/Clocky/internal/version.Date={{.Date}}
 ```
 
 Commands:
@@ -140,7 +140,7 @@ If already latest: `Already up to date (v1.2.0)` exit 0.
 
 ### Repo discovery
 
-Default owner/repo baked in as constants (e.g. `github.com/luisf/clocky` → API `luisf/Clocky`). Override for forks/tests:
+Default owner/repo baked in as constants (e.g. `github.com/LuizFer1/Clocky` → API `LuizFer1/Clocky`). Override for forks/tests:
 
 - Env `CLOCKY_GITHUB_REPO=owner/name`
 - Optional flag later (not MVP)
@@ -212,7 +212,7 @@ Requires GitHub repo with Actions enabled and `contents: write` for the release 
 - Native `.msi` / `.pkg` / `.deb`
 - Background auto-update daemon
 - Code signing / Apple notarization
-- Updating install scripts via `clocky update` (scripts stay on `master` raw URLs)
+- Updating install scripts via `clocky update` (scripts stay on `main` raw URLs)
 
 ## Success criteria
 

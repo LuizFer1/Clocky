@@ -1,7 +1,7 @@
 # Releasing Clocky
 
-1. Merge the release branch to `master`.
-2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`
+1. Merge the release branch to `main`.
+2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0` (repo: https://github.com/LuizFer1/Clocky)
 3. GitHub Actions (`.github/workflows/release.yml`) runs GoReleaser and publishes a GitHub Release with archives + `checksums.txt`.
 4. Users install or upgrade with:
    - `scripts/install.ps1` / `scripts/install.sh`

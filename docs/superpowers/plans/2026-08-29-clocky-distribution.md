@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-29-clocky-distribution-design.md`
 
-**Defaults:** GitHub repo API slug `luisf/Clocky` (override with `CLOCKY_GITHUB_REPO`). Module path remains `github.com/luisf/clocky`.
+**Defaults:** GitHub repo API slug `LuizFer1/Clocky` (override with `CLOCKY_GITHUB_REPO`). Module path remains `github.com/LuizFer1/Clocky`.
 
 ---
 
@@ -229,7 +229,7 @@ type HTTPGetter struct {
 
 func (h HTTPGetter) Get(url string) ([]byte, error)
 
-func RepoSlug() string // os.Getenv("CLOCKY_GITHUB_REPO") or "luisf/Clocky"
+func RepoSlug() string // os.Getenv("CLOCKY_GITHUB_REPO") or "LuizFer1/Clocky"
 
 func LatestRelease(g Getter, repo string) (*Release, error)
 // GET https://api.github.com/repos/{repo}/releases/latest
@@ -474,7 +474,7 @@ Wire in `cli.go` switch: `version`, `update`. Expand help:
 - [ ] **Step 3: Manual smoke**
 
 ```powershell
-go build -ldflags "-X github.com/luisf/clocky/internal/version.Version=0.0.1" -o clocky.exe ./cmd/clocky
+go build -ldflags "-X github.com/LuizFer1/Clocky/internal/version.Version=0.0.1" -o clocky.exe ./cmd/clocky
 .\clocky.exe version
 .\clocky.exe update --check
 # expect API error or real check depending on repo existence — should not panic
@@ -515,9 +515,9 @@ builds:
     goarch: [amd64, arm64]
     ldflags:
       - -s -w
-      - -X github.com/luisf/clocky/internal/version.Version={{.Version}}
-      - -X github.com/luisf/clocky/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/luisf/clocky/internal/version.Date={{.Date}}
+      - -X github.com/LuizFer1/Clocky/internal/version.Version={{.Version}}
+      - -X github.com/LuizFer1/Clocky/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/LuizFer1/Clocky/internal/version.Date={{.Date}}
 
 archives:
   - id: default
@@ -611,7 +611,7 @@ git commit -m "ci: add GoReleaser GitHub release workflow"
 - Create: `scripts/install.sh`
 - Create: `scripts/install.ps1`
 
-**Shared behavior:** detect arch; `REPO` default `luisf/Clocky`; version from `CLOCKY_VERSION` or latest API; download archive + checksums; verify; install to default dir or `CLOCKY_INSTALL_DIR`; fix PATH.
+**Shared behavior:** detect arch; `REPO` default `LuizFer1/Clocky`; version from `CLOCKY_VERSION` or latest API; download archive + checksums; verify; install to default dir or `CLOCKY_INSTALL_DIR`; fix PATH.
 
 #### `scripts/install.sh` (bash)
 
@@ -620,7 +620,7 @@ Skeleton responsibilities:
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-REPO="${CLOCKY_GITHUB_REPO:-luisf/Clocky}"
+REPO="${CLOCKY_GITHUB_REPO:-LuizFer1/Clocky}"
 INSTALL_DIR="${CLOCKY_INSTALL_DIR:-${HOME}/.local/bin}"
 # uname -s/-m → darwin/linux + amd64/arm64
 # curl -fsSL API latest or specific tag assets
@@ -635,7 +635,7 @@ INSTALL_DIR="${CLOCKY_INSTALL_DIR:-${HOME}/.local/bin}"
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$Repo = if ($env:CLOCKY_GITHUB_REPO) { $env:CLOCKY_GITHUB_REPO } else { 'luisf/Clocky' }
+$Repo = if ($env:CLOCKY_GITHUB_REPO) { $env:CLOCKY_GITHUB_REPO } else { 'LuizFer1/Clocky' }
 $InstallDir = if ($env:CLOCKY_INSTALL_DIR) { $env:CLOCKY_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Clocky' }
 # Detect amd64/arm64 from $env:PROCESSOR_ARCHITECTURE
 # Invoke-RestMethod releases/latest
@@ -672,12 +672,12 @@ Replace install section with:
 
 **Windows (PowerShell):**
 \`\`\`powershell
-irm https://raw.githubusercontent.com/luisf/Clocky/master/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/LuizFer1/Clocky/main/scripts/install.ps1 | iex
 \`\`\`
 
 **macOS / Linux:**
 \`\`\`bash
-curl -fsSL https://raw.githubusercontent.com/luisf/Clocky/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/LuizFer1/Clocky/main/scripts/install.sh | bash
 \`\`\`
 
 ### Update
@@ -692,7 +692,7 @@ clocky update --check
 … keep existing go build instructions …
 ```
 
-Fix clone URL to `https://github.com/luisf/Clocky.git`.
+Fix clone URL to `https://github.com/LuizFer1/Clocky.git`.
 
 - [ ] **Step 1: Edit README**
 - [ ] **Step 2: `go test ./...`**
@@ -717,7 +717,7 @@ Expected: all PASS.
 - [ ] **Step 2: Local version ldflags**
 
 ```powershell
-go build -ldflags "-X github.com/luisf/clocky/internal/version.Version=0.0.0-dev" -o clocky.exe ./cmd/clocky
+go build -ldflags "-X github.com/LuizFer1/Clocky/internal/version.Version=0.0.0-dev" -o clocky.exe ./cmd/clocky
 .\clocky.exe version
 ```
 
@@ -763,7 +763,7 @@ git commit -m "docs: add release tagging checklist"
 
 ## Self-review notes
 
-- Repo slug default `luisf/Clocky` must match the real GitHub repo name/casing when published; override via env until then.
+- Repo slug default `LuizFer1/Clocky` must match the real GitHub repo name/casing when published; override via env until then.
 - GoReleaser archive may include LICENSE/README; `ExtractBinary` must select by binary basename.
 - Windows replace leaves `.old` if delete fails; startup cleanup handles it.
 - No package-manager manifests in this plan (explicitly out of scope).

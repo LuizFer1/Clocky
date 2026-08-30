@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/luisf/clocky/internal/pomodoro"
-	"github.com/luisf/clocky/internal/presets"
+	"github.com/LuizFer1/Clocky/internal/pomodoro"
+	"github.com/LuizFer1/Clocky/internal/presets"
 )
 
 func runPomodoro(args []string) error {

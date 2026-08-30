@@ -16,7 +16,7 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `go.mod` | Module `github.com/luisf/clocky` (adjust module path if repo differs) |
+| `go.mod` | Module `github.com/LuizFer1/Clocky` (adjust module path if repo differs) |
 | `cmd/clocky/main.go` | `os.Exit(run(os.Args[1:]))` thin wrapper |
 | `internal/cli/cli.go` | Subcommand routing, flag parsing, help text |
 | `internal/duration/duration.go` | Flexible `H:M:S` parse + `Format` |
@@ -60,7 +60,7 @@ Expected: `go version go1.22` or newer.
 
 ```powershell
 cd C:\Users\luisf\orca\projects\Clocky
-go mod init github.com/luisf/clocky
+go mod init github.com/LuizFer1/Clocky
 ```
 
 Create `cmd/clocky/main.go`:
@@ -72,7 +72,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/luisf/clocky/internal/cli"
+	"github.com/LuizFer1/Clocky/internal/cli"
 )
 
 func main() {
@@ -665,4 +665,4 @@ git commit -m "chore: polish clocky MVP and verify tests"
 - No Portuguese command names; command is `stopwatch`.
 - Zero duration rejected by parser.
 - Timer worker invoked via hidden `--worker` flag (same binary).
-- Module path `github.com/luisf/clocky` is provisional — change if the GitHub repo name/owner differs.
+- Module path `github.com/LuizFer1/Clocky` is provisional — change if the GitHub repo name/owner differs.

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/luisf/clocky/internal/duration"
-	"github.com/luisf/clocky/internal/stopwatch"
-	"github.com/luisf/clocky/internal/timer"
+	"github.com/LuizFer1/Clocky/internal/duration"
+	"github.com/LuizFer1/Clocky/internal/stopwatch"
+	"github.com/LuizFer1/Clocky/internal/timer"
 )
 
 func runStatus(args []string) error {

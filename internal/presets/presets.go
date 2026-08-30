@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/luisf/clocky/internal/state"
+	"github.com/LuizFer1/Clocky/internal/state"
 )
 
 const fileName = "presets.json"

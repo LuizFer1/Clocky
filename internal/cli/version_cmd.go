@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/luisf/clocky/internal/version"
+	"github.com/LuizFer1/Clocky/internal/version"
 )
 
 func runVersion(args []string) error {

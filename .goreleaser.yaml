@@ -16,9 +16,9 @@ builds:
     goarch: [amd64, arm64]
     ldflags:
       - -s -w
-      - -X github.com/luisf/clocky/internal/version.Version={{.Version}}
-      - -X github.com/luisf/clocky/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/luisf/clocky/internal/version.Date={{.Date}}
+      - -X github.com/LuizFer1/Clocky/internal/version.Version={{.Version}}
+      - -X github.com/LuizFer1/Clocky/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/LuizFer1/Clocky/internal/version.Date={{.Date}}
 
 archives:
   - id: default

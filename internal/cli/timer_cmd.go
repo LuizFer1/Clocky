@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/luisf/clocky/internal/duration"
-	"github.com/luisf/clocky/internal/notify"
-	"github.com/luisf/clocky/internal/presets"
-	"github.com/luisf/clocky/internal/timer"
+	"github.com/LuizFer1/Clocky/internal/duration"
+	"github.com/LuizFer1/Clocky/internal/notify"
+	"github.com/LuizFer1/Clocky/internal/presets"
+	"github.com/LuizFer1/Clocky/internal/timer"
 )
 
 func runTimer(args []string) error {

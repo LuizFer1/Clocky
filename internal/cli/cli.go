@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/luisf/clocky/internal/state"
+	"github.com/LuizFer1/Clocky/internal/state"
 )
 
 // Run dispatches clocky subcommands.

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/luisf/clocky/internal/duration"
-	"github.com/luisf/clocky/internal/presets"
+	"github.com/LuizFer1/Clocky/internal/duration"
+	"github.com/LuizFer1/Clocky/internal/presets"
 )
 
 func runAdd(args []string) error {

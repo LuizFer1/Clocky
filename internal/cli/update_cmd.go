@@ -5,8 +5,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/luisf/clocky/internal/update"
-	"github.com/luisf/clocky/internal/version"
+	"github.com/LuizFer1/Clocky/internal/update"
+	"github.com/LuizFer1/Clocky/internal/version"
 )
 
 func runUpdate(args []string) error {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/luisf/clocky/internal/cli"
-	"github.com/luisf/clocky/internal/update"
+	"github.com/LuizFer1/Clocky/internal/cli"
+	"github.com/LuizFer1/Clocky/internal/update"
 )
 
 func main() {

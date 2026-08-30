@@ -69,12 +69,12 @@ func (h HTTPGetter) Get(url string) ([]byte, error) {
 	return body, nil
 }
 
-// RepoSlug returns CLOCKY_GITHUB_REPO or the default "luisf/Clocky".
+// RepoSlug returns CLOCKY_GITHUB_REPO or the default "LuizFer1/Clocky".
 func RepoSlug() string {
 	if s := strings.TrimSpace(os.Getenv("CLOCKY_GITHUB_REPO")); s != "" {
 		return s
 	}
-	return "luisf/Clocky"
+	return "LuizFer1/Clocky"
 }
 
 // LatestRelease fetches https://api.github.com/repos/{repo}/releases/latest.

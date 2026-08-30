@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/luisf/clocky/internal/clockface"
-	"github.com/luisf/clocky/internal/notify"
+	"github.com/LuizFer1/Clocky/internal/clockface"
+	"github.com/LuizFer1/Clocky/internal/notify"
 )
 
 // Config holds pomodoro timing and behavior.
@@ -68,7 +68,7 @@ func (h Hooks) withDefaults() Hooks {
 		h.Notify = notify.Default{}
 	}
 	if h.Width == 0 {
-		h.Width = 21
+		h.Width = 31
 	}
 	if h.In == nil {
 		h.In = os.Stdin

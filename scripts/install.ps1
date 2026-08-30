@@ -1,7 +1,7 @@
 # Install Clocky from GitHub Releases into %LOCALAPPDATA%\Clocky (or CLOCKY_INSTALL_DIR).
 $ErrorActionPreference = 'Stop'
 
-$Repo = if ($env:CLOCKY_GITHUB_REPO) { $env:CLOCKY_GITHUB_REPO.Trim() } else { 'luisf/Clocky' }
+$Repo = if ($env:CLOCKY_GITHUB_REPO) { $env:CLOCKY_GITHUB_REPO.Trim() } else { 'LuizFer1/Clocky' }
 $InstallDir = if ($env:CLOCKY_INSTALL_DIR) { $env:CLOCKY_INSTALL_DIR.Trim() } else { Join-Path $env:LOCALAPPDATA 'Clocky' }
 
 function Get-ClockyArch {

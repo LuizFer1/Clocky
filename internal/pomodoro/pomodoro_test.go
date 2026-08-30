@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/luisf/clocky/internal/notify"
+	"github.com/LuizFer1/Clocky/internal/notify"
 )
 
 type recordingNotifier struct {

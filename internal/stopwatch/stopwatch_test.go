@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/luisf/clocky/internal/state"
+	"github.com/LuizFer1/Clocky/internal/state"
 )
 
 func TestToggleStartThenStop(t *testing.T) {

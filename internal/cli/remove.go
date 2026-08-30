@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/luisf/clocky/internal/presets"
+	"github.com/LuizFer1/Clocky/internal/presets"
 )
 
 func runRemove(args []string) error {

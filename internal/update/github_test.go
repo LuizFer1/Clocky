@@ -15,7 +15,7 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { retu
 
 func TestRepoSlugDefault(t *testing.T) {
 	t.Setenv("CLOCKY_GITHUB_REPO", "")
-	if got := RepoSlug(); got != "luisf/Clocky" {
+	if got := RepoSlug(); got != "LuizFer1/Clocky" {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -29,7 +29,7 @@ func TestRepoSlugOverride(t *testing.T) {
 
 func TestLatestRelease(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/luisf/Clocky/releases/latest" {
+		if r.URL.Path != "/repos/LuizFer1/Clocky/releases/latest" {
 			t.Errorf("path %s", r.URL.Path)
 			http.NotFound(w, r)
 			return
@@ -62,7 +62,7 @@ func TestLatestRelease(t *testing.T) {
 		},
 	}
 
-	rel, err := LatestRelease(g, "luisf/Clocky")
+	rel, err := LatestRelease(g, "LuizFer1/Clocky")
 	if err != nil {
 		t.Fatal(err)
 	}

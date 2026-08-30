@@ -25,13 +25,13 @@ clocky stopwatch
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/luisf/Clocky/master/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/LuizFer1/Clocky/main/scripts/install.ps1 | iex
 ```
 
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/luisf/Clocky/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/LuizFer1/Clocky/main/scripts/install.sh | bash
 ```
 
 Defaults: Windows `%LOCALAPPDATA%\Clocky`, Unix `~/.local/bin`. Override with `CLOCKY_INSTALL_DIR`, pin a release with `CLOCKY_VERSION=v1.2.0`, or point at a fork with `CLOCKY_GITHUB_REPO=owner/name`.
@@ -49,7 +49,7 @@ clocky update --check
 Requires [Go](https://go.dev/) 1.22+.
 
 ```bash
-git clone https://github.com/luisf/Clocky.git
+git clone https://github.com/LuizFer1/Clocky.git
 cd Clocky
 go build -o clocky ./cmd/clocky
 ```

@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/luisf/clocky/internal/state"
+	"github.com/LuizFer1/Clocky/internal/state"
 )
 
 // State is the on-disk stopwatch marker.
