@@ -1,0 +1,44 @@
+version: 2
+
+project_name: clocky
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: clocky
+    main: ./cmd/clocky
+    binary: clocky
+    env:
+      - CGO_ENABLED=0
+    goos: [windows, darwin, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/luisf/clocky/internal/version.Version={{.Version}}
+      - -X github.com/luisf/clocky/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/luisf/clocky/internal/version.Date={{.Date}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  draft: false
+  prerelease: auto
