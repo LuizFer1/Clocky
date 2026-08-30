@@ -12,10 +12,29 @@ func TestHubActionBarInView(t *testing.T) {
 	h := newHubModel(Dependencies{Root: t.TempDir(), Now: time.Now})
 	h.width, h.height = 100, 40
 	view := h.View()
-	for _, label := range []string{"New Pomodoro", "New Timer", "Start", "Stop", "Stopwatch"} {
+	for _, label := range []string{"New Pomodoro", "New Timer", "Start Stopwatch"} {
 		if !strings.Contains(view, label) {
 			t.Fatalf("missing button %q in:\n%s", label, view)
 		}
+	}
+	if strings.Contains(view, "[ Start ]") || strings.Contains(view, "[ Stop ]") {
+		t.Fatal("unexpected standalone Start/Stop buttons")
+	}
+}
+
+func TestStopwatchButtonLabelFlips(t *testing.T) {
+	root := t.TempDir()
+	now := time.Unix(1000, 0)
+	h := newHubModel(Dependencies{Root: root, Now: func() time.Time { return now }})
+	btns := hubActionButtons(h.active)
+	if btns[2].Label != "Start Stopwatch" {
+		t.Fatalf("idle label=%q", btns[2].Label)
+	}
+	m, _ := h.doStopwatch()
+	h = m.(hubModel)
+	btns = hubActionButtons(h.active)
+	if btns[2].Label != "Stop Stopwatch" {
+		t.Fatalf("running label=%q", btns[2].Label)
 	}
 }
 

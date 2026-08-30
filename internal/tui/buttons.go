@@ -18,22 +18,13 @@ type actionID int
 const (
 	actionNewPomodoro actionID = iota
 	actionNewTimer
-	actionStart
-	actionStop
-	actionStopwatch
+	actionStopwatchToggle
+	actionStopTimer
 )
 
 type actionButton struct {
 	ID    actionID
 	Label string
-}
-
-var hubActions = []actionButton{
-	{actionNewPomodoro, "New Pomodoro"},
-	{actionNewTimer, "New Timer"},
-	{actionStart, "Start"},
-	{actionStop, "Stop"},
-	{actionStopwatch, "Stopwatch"},
 }
 
 var (
@@ -55,9 +46,36 @@ var (
 			MarginRight(1)
 )
 
-func renderActionBar(selected int, actionsFocused bool, width int) string {
+// hubActionButtons builds the action row. Stopwatch label flips with state;
+// Stop Timer only appears while a background timer is running.
+func hubActionButtons(a activeSnapshot) []actionButton {
+	swLabel := "Start Stopwatch"
+	if a.StopwatchRunning {
+		swLabel = "Stop Stopwatch"
+	}
+	btns := []actionButton{
+		{actionNewPomodoro, "New Pomodoro"},
+		{actionNewTimer, "New Timer"},
+		{actionStopwatchToggle, swLabel},
+	}
+	if a.TimerActive {
+		btns = append(btns, actionButton{actionStopTimer, "Stop Timer"})
+	}
+	return btns
+}
+
+func renderActionBar(buttons []actionButton, selected int, actionsFocused bool, width int) string {
+	if len(buttons) == 0 {
+		return ""
+	}
+	if selected >= len(buttons) {
+		selected = len(buttons) - 1
+	}
+	if selected < 0 {
+		selected = 0
+	}
 	var parts []string
-	for i, a := range hubActions {
+	for i, a := range buttons {
 		label := "[ " + a.Label + " ]"
 		var s string
 		switch {
@@ -81,24 +99,26 @@ func renderActionBar(selected int, actionsFocused bool, width int) string {
 	return stylePanel.Width(panelW).Render(inner)
 }
 
-func wrapActionBar(selected int, actionsFocused bool, panelW, termW int) string {
-	bar := renderActionBar(selected, actionsFocused, panelW)
-	// If too wide for panel, stack buttons vertically.
-	if lipgloss.Width(bar) > termW-2 {
-		var lines []string
-		lines = append(lines, styleTitle.Render("Actions"))
-		for i, a := range hubActions {
-			label := "[ " + a.Label + " ]"
-			if actionsFocused && i == selected {
-				lines = append(lines, styleBtnActive.Render(label))
-			} else if actionsFocused {
-				lines = append(lines, styleBtn.Render(label))
-			} else {
-				lines = append(lines, styleBtnIdle.Render(label))
-			}
-		}
-		lines = append(lines, styleMuted.Render("tab · ↑↓ · enter"))
-		return stylePanel.Width(panelW).Render(strings.Join(lines, "\n"))
+func wrapActionBar(buttons []actionButton, selected int, actionsFocused bool, panelW, termW int) string {
+	bar := renderActionBar(buttons, selected, actionsFocused, panelW)
+	if lipgloss.Width(bar) <= termW-2 {
+		return bar
 	}
-	return bar
+	if selected >= len(buttons) {
+		selected = len(buttons) - 1
+	}
+	var lines []string
+	lines = append(lines, styleTitle.Render("Actions"))
+	for i, a := range buttons {
+		label := "[ " + a.Label + " ]"
+		if actionsFocused && i == selected {
+			lines = append(lines, styleBtnActive.Render(label))
+		} else if actionsFocused {
+			lines = append(lines, styleBtn.Render(label))
+		} else {
+			lines = append(lines, styleBtnIdle.Render(label))
+		}
+	}
+	lines = append(lines, styleMuted.Render("tab · ↑↓ · enter"))
+	return stylePanel.Width(panelW).Render(strings.Join(lines, "\n"))
 }

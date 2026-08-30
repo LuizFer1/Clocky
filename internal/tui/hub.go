@@ -102,13 +102,15 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return h, nil
 		case "right", "l":
-			if h.focus == focusActions && h.actionCursor < len(hubActions)-1 {
-				h.actionCursor++
+			if h.focus == focusActions {
+				btns := hubActionButtons(h.active)
+				if h.actionCursor < len(btns)-1 {
+					h.actionCursor++
+				}
 			}
 			return h, nil
 		case "up", "k":
 			if h.focus == focusActions {
-				// vertical button layout fallback: move action cursor
 				if h.actionCursor > 0 {
 					h.actionCursor--
 				}
@@ -120,7 +122,8 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return h, nil
 		case "down", "j":
 			if h.focus == focusActions {
-				if h.actionCursor < len(hubActions)-1 {
+				btns := hubActionButtons(h.active)
+				if h.actionCursor < len(btns)-1 {
 					h.actionCursor++
 				}
 				return h, nil
@@ -131,11 +134,21 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return h, nil
 		case "enter", " ":
 			if h.focus == focusActions {
-				return h.activateAction(hubActions[h.actionCursor].ID)
+				btns := hubActionButtons(h.active)
+				if len(btns) == 0 {
+					return h, nil
+				}
+				if h.actionCursor >= len(btns) {
+					h.actionCursor = len(btns) - 1
+				}
+				return h.activateAction(btns[h.actionCursor].ID)
 			}
 			return h.startSelected()
 		case "s":
-			return h.doStop()
+			if h.active.TimerActive {
+				return h.doStopTimer()
+			}
+			return h.doStopwatch()
 		case "t":
 			return h.doStopwatch()
 		case "p":
@@ -176,18 +189,16 @@ func (h hubModel) activateAction(id actionID) (tea.Model, tea.Cmd) {
 		return h, func() tea.Msg { return openLaunchFormMsg{Kind: formPomodoro} }
 	case actionNewTimer:
 		return h, func() tea.Msg { return openLaunchFormMsg{Kind: formTimer} }
-	case actionStart:
-		return h.startSelected()
-	case actionStop:
-		return h.doStop()
-	case actionStopwatch:
+	case actionStopwatchToggle:
 		return h.doStopwatch()
+	case actionStopTimer:
+		return h.doStopTimer()
 	default:
 		return h, nil
 	}
 }
 
-func (h hubModel) doStop() (tea.Model, tea.Cmd) {
+func (h hubModel) doStopTimer() (tea.Model, tea.Cmd) {
 	if err := timer.Stop(h.deps.Root); err != nil {
 		h.errMsg = err.Error()
 	} else {
@@ -195,6 +206,10 @@ func (h hubModel) doStop() (tea.Model, tea.Cmd) {
 		h.errMsg = ""
 	}
 	h.active = refreshActive(h.deps.Root, h.deps.Now())
+	btns := hubActionButtons(h.active)
+	if h.actionCursor >= len(btns) && len(btns) > 0 {
+		h.actionCursor = len(btns) - 1
+	}
 	return h, nil
 }
 
@@ -215,7 +230,7 @@ func (h hubModel) doStopwatch() (tea.Model, tea.Cmd) {
 
 func (h hubModel) startSelected() (tea.Model, tea.Cmd) {
 	if len(h.items) == 0 {
-		h.errMsg = "no preset selected — use New Pomodoro / New Timer"
+		h.errMsg = "no preset selected — use New Pomodoro / New Timer, or Enter on a preset"
 		return h, nil
 	}
 	it := h.items[h.cursor]
@@ -275,7 +290,11 @@ func (h hubModel) View() string {
 		panelW = max(20, w-4)
 	}
 
-	actions := wrapActionBar(h.actionCursor, h.focus == focusActions, panelW, w)
+	btns := hubActionButtons(h.active)
+	if h.actionCursor >= len(btns) && len(btns) > 0 {
+		h.actionCursor = len(btns) - 1
+	}
+	actions := wrapActionBar(btns, h.actionCursor, h.focus == focusActions, panelW, w)
 	activePanel := panelBox("Active", renderActive(h.active), panelW)
 	presetsTitle := "Presets"
 	if h.focus == focusPresets {
@@ -291,7 +310,7 @@ func (h hubModel) View() string {
 	}
 
 	body := joinPanels(actions, activePanel, presetsPanel, statusLine)
-	footer := "tab focus  ←→ actions  ↑↓ presets  enter  e edit  d delete  q quit"
+	footer := "tab focus  ←→ actions  ↑↓ presets  enter start preset  e edit  d delete  q quit"
 	return fillFrame(w, ht, "hub", body, footer)
 }
 
