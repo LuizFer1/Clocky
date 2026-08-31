@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/LuizFer1/Clocky/internal/notify"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -62,6 +63,23 @@ func (m appModel) Init() tea.Cmd {
 	return m.hub.Init()
 }
 
+func (m *appModel) syncHubPomodoro() {
+	m.hub.active = mergePomodoroActive(m.hub.active, m.session)
+}
+
+func (m appModel) stopSession() appModel {
+	m.session.active = false
+	m.session.phases = nil
+	m.session.status = ""
+	m.hub.notice = ""
+	m.hub.alerting = false
+	notify.StopAlert()
+	m.hub.reload()
+	m.syncHubPomodoro()
+	m.hub.status = "Pomodoro stopped"
+	return m
+}
+
 func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -79,13 +97,41 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.picker.height = msg.Height
 		return m, nil
 	case startSessionMsg:
+		if m.session.live() {
+			m.hub.errMsg = "pomodoro already running — Open or Stop it first"
+			m.page = pageHub
+			return m, scheduleTick()
+		}
 		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
 		m.page = pageSession
 		return m, m.session.Init()
-	case sessionDoneMsg, sessionAbortMsg:
+	case sessionMinimizeMsg:
+		m.session.paused = false // background always runs (spec)
 		m.page = pageHub
 		m.hub.reload()
-		m.hub.status = "Back at hub"
+		m.syncHubPomodoro()
+		m.hub.status = "Pomodoro running in background"
+		return m, scheduleTick()
+	case openPomodoroMsg:
+		if !m.session.live() {
+			m.hub.errMsg = "no pomodoro running"
+			return m, nil
+		}
+		m.page = pageSession
+		return m, scheduleTick()
+	case stopPomodoroMsg:
+		m = m.stopSession()
+		m.page = pageHub
+		return m, scheduleTick()
+	case sessionDoneMsg:
+		m.session.active = false
+		m.page = pageHub
+		m.hub.reload()
+		m.syncHubPomodoro()
+		return m, scheduleTick()
+	case sessionAbortMsg:
+		m = m.stopSession()
+		m.page = pageHub
 		return m, scheduleTick()
 	case openPickerMsg:
 		m.picker = newPickerModel()
@@ -128,12 +174,21 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case formSavedMsg:
 		m.page = pageHub
 		m.hub.reload()
+		m.syncHubPomodoro()
 		m.hub.status = "Preset saved"
 		m.hub.errMsg = ""
 		return m, scheduleTick()
 	case formLaunchPomodoroMsg:
+		if m.session.live() {
+			m.hub.errMsg = "pomodoro already running — Open or Stop it first"
+			m.page = pageHub
+			m.hub.reload()
+			m.syncHubPomodoro()
+			return m, scheduleTick()
+		}
 		m.page = pageHub
 		m.hub.reload()
+		m.syncHubPomodoro()
 		if msg.SavedPreset {
 			m.hub.status = "Preset saved · starting pomodoro"
 		} else {
@@ -146,8 +201,10 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case formLaunchTimerMsg:
 		m.page = pageHub
 		m.hub.reload()
+		m.syncHubPomodoro()
 		mod, _ := m.hub.startTimer(msg.Duration, msg.Label)
 		m.hub = mod.(hubModel)
+		m.syncHubPomodoro()
 		if msg.SavedPreset {
 			m.hub.status = fmt.Sprintf("Preset saved · timer started: %s", msg.Label)
 		}
@@ -173,6 +230,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.page = pageHub
 		m.hub.reload()
+		m.syncHubPomodoro()
 		return m, scheduleTick()
 	}
 
@@ -184,6 +242,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pageSession:
 		mod, cmd := m.session.Update(msg)
 		m.session = mod.(sessionModel)
+		m.syncHubPomodoro()
 		return m, cmd
 	case pageForm:
 		mod, cmd := m.form.Update(msg)
