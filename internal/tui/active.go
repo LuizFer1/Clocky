@@ -41,11 +41,11 @@ func mergePomodoroActive(a activeSnapshot, s sessionModel) activeSnapshot {
 	if !s.live() {
 		return a
 	}
-	a.PomodoroActive = true
 	if len(s.phases) == 0 || s.index >= len(s.phases) {
 		return a
 	}
 	ph := s.phases[s.index]
+	a.PomodoroActive = true
 	a.PomodoroPhase = ph.Name
 	a.PomodoroCycle = ph.Cycle
 	a.PomodoroCycles = s.cfg.Cycles

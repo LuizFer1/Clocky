@@ -77,8 +77,34 @@ func TestHubActionButtonsIncludePomodoroControls(t *testing.T) {
 	for i, b := range btns {
 		labels[i] = b.Label
 	}
-	joined := strings.Join(labels, ",")
-	if !strings.Contains(joined, "Open Pomodoro") || !strings.Contains(joined, "Stop Pomodoro") {
-		t.Fatalf("buttons=%v", labels)
+	for _, label := range labels {
+		if label == "New Pomodoro" {
+			t.Fatalf("New Pomodoro should be absent when active; buttons=%v", labels)
+		}
+	}
+	if len(btns) < 2 || btns[0].Label != "Open Pomodoro" || btns[1].Label != "Stop Pomodoro" {
+		t.Fatalf("expected Open then Stop first; buttons=%v", labels)
+	}
+}
+
+func TestActivateOpenAndStopPomodoro(t *testing.T) {
+	h := newHubModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+
+	_, cmd := h.activateAction(actionOpenPomodoro)
+	if cmd == nil {
+		t.Fatal("expected open command")
+	}
+	msg := cmd()
+	if _, ok := msg.(openPomodoroMsg); !ok {
+		t.Fatalf("expected openPomodoroMsg, got %#v", msg)
+	}
+
+	_, cmd = h.activateAction(actionStopPomodoro)
+	if cmd == nil {
+		t.Fatal("expected stop command")
+	}
+	msg = cmd()
+	if _, ok := msg.(stopPomodoroMsg); !ok {
+		t.Fatalf("expected stopPomodoroMsg, got %#v", msg)
 	}
 }

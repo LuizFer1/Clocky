@@ -60,3 +60,18 @@ func TestMergePomodoroActiveIgnoresInactive(t *testing.T) {
 		t.Fatal("expected inactive")
 	}
 }
+
+func TestMergePomodoroActiveIgnoresOutOfRangeIndex(t *testing.T) {
+	s := sessionModel{
+		active: true,
+		phases: []pomodoro.Phase{{Name: "FOCUS", Cycle: 1, Duration: time.Minute}},
+		index:  1,
+	}
+	if !s.live() {
+		t.Fatal("expected live session")
+	}
+	a := mergePomodoroActive(activeSnapshot{}, s)
+	if a.PomodoroActive {
+		t.Fatalf("expected inactive for out-of-range index, got %+v", a)
+	}
+}
