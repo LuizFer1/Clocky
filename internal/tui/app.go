@@ -129,6 +129,8 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.hub.reload()
 		m.syncHubPomodoro()
 		return m, scheduleTick()
+	case sessionPhaseEndMsg:
+		return m.applyPhaseEnd(msg)
 	case sessionAbortMsg:
 		m = m.stopSession()
 		m.page = pageHub
@@ -236,11 +238,43 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.page {
 	case pageHub:
+		// Hub Enter advances waiting pomodoro (Task 5) — intercept before hub actions.
+		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
+			if m.session.live() && m.session.waitingEnter {
+				sm, scmd := m.session.advanceAfterWait()
+				m.session = sm.(sessionModel)
+				m.syncHubPomodoro()
+				m.hub.status = "Next phase started"
+				return m, tea.Batch(scmd, scheduleTick())
+			}
+		}
+		if m.session.live() {
+			if !m.session.waitingEnter {
+				m.session.paused = false
+			}
+			sm, scmd := m.session.Update(msg)
+			m.session = sm.(sessionModel)
+			hm, hcmd := m.hub.Update(msg)
+			m.hub = hm.(hubModel)
+			m.syncHubPomodoro()
+			return m, tea.Batch(scmd, hcmd)
+		}
 		mod, cmd := m.hub.Update(msg)
 		m.hub = mod.(hubModel)
-		m.syncHubPomodoro()
 		return m, cmd
 	case pageSession:
+		if key, ok := msg.(tea.KeyMsg); ok {
+			ks := key.String()
+			if ks == "esc" || ks == "b" {
+				if m.hub.notice != "" || m.hub.alerting {
+					m.hub.notice = ""
+					m.hub.alerting = false
+					notify.StopAlert()
+					return m, nil
+				}
+				return m.Update(sessionMinimizeMsg{})
+			}
+		}
 		mod, cmd := m.session.Update(msg)
 		m.session = mod.(sessionModel)
 		m.syncHubPomodoro()
@@ -259,6 +293,20 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+func (m appModel) applyPhaseEnd(msg sessionPhaseEndMsg) (tea.Model, tea.Cmd) {
+	m.hub.notice = fmt.Sprintf("%s — %s", msg.Title, msg.Body)
+	m.hub.status = m.hub.notice
+	m.hub.alerting = true
+	m.hub.errMsg = ""
+	n := m.session.notifier
+	if n == nil {
+		n = notify.Default{}
+	}
+	_ = n.Desktop(msg.Title, msg.Body)
+	m.syncHubPomodoro()
+	return m, tea.Batch(hubAudioAlert(), scheduleAlertTick(), scheduleTick())
 }
 
 func (m appModel) View() string {
