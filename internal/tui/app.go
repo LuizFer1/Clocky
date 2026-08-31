@@ -104,7 +104,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
 		m.page = pageSession
-		return m, m.session.Init()
+		return m, nil
 	case sessionMinimizeMsg:
 		m.session.paused = false // background always runs (spec)
 		m.page = pageHub
@@ -199,7 +199,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.hub.errMsg = ""
 		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
 		m.page = pageSession
-		return m, m.session.Init()
+		return m, nil
 	case formLaunchTimerMsg:
 		m.page = pageHub
 		m.hub.reload()
@@ -251,6 +251,24 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.session.live() {
 			if !m.session.waitingEnter {
 				m.session.paused = false
+			}
+			// For tickMsg we must avoid double scheduleTick (session + hub both schedule).
+			if _, ok := msg.(tickMsg); ok {
+				sm, scmd := m.session.Update(msg)
+				m.session = sm.(sessionModel)
+				// Manual hub tick without duplicate schedule: refresh active and check timer notice
+				prev := m.hub.active
+				m.hub.active = refreshActive(m.hub.deps.Root, m.hub.deps.Now())
+				if note, ok := timerFinishedNotice(prev, m.hub.active, m.hub.status); ok {
+					m.hub.notice = note
+					m.hub.status = note
+					m.hub.errMsg = ""
+					m.hub.alerting = true
+					m.syncHubPomodoro()
+					return m, tea.Batch(scmd, hubAudioAlert(), scheduleAlertTick())
+				}
+				m.syncHubPomodoro()
+				return m, scmd
 			}
 			sm, scmd := m.session.Update(msg)
 			m.session = sm.(sessionModel)
