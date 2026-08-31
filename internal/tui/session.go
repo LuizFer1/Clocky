@@ -15,6 +15,14 @@ import (
 type sessionDoneMsg struct{}
 type sessionAbortMsg struct{}
 
+type sessionMinimizeMsg struct{}
+
+type sessionPhaseEndMsg struct {
+	Title string
+	Body  string
+	Done  bool // true when the whole pomodoro finished
+}
+
 type sessionModel struct {
 	cfg          pomodoro.Config
 	phases       []pomodoro.Phase
@@ -105,7 +113,7 @@ func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return s, nil
 		case "esc", "b":
-			return s, func() tea.Msg { return sessionAbortMsg{} }
+			return s, func() tea.Msg { return sessionMinimizeMsg{} }
 		case "q", "ctrl+c":
 			return s, tea.Quit
 		}
@@ -116,18 +124,24 @@ func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s sessionModel) finishPhase() (tea.Model, tea.Cmd) {
 	phase := s.phases[s.index]
 	title, body := phaseEndTitleBody(phase)
-	_ = notify.All(s.notifier, title, body)
-	if s.index >= len(s.phases)-1 {
+	done := s.index >= len(s.phases)-1
+	phaseCmd := func() tea.Msg {
+		return sessionPhaseEndMsg{Title: title, Body: body, Done: done}
+	}
+	if done {
 		s.status = "Session complete"
-		return s, func() tea.Msg { return sessionDoneMsg{} }
+		s.remaining = 0
+		return s, tea.Batch(phaseCmd, func() tea.Msg { return sessionDoneMsg{} })
 	}
 	if !s.cfg.Auto {
 		s.waitingEnter = true
 		s.paused = false
 		s.status = "Press Enter or n to continue"
-		return s, scheduleTick()
+		return s, tea.Batch(phaseCmd, scheduleTick())
 	}
-	return s.advanceAfterWait()
+	// Auto: advance, then notify about the phase that just ended.
+	m, advCmd := s.advanceAfterWait()
+	return m, tea.Batch(phaseCmd, advCmd)
 }
 
 func (s sessionModel) advanceAfterWait() (tea.Model, tea.Cmd) {

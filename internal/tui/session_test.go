@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/LuizFer1/Clocky/internal/notify"
 	"github.com/LuizFer1/Clocky/internal/pomodoro"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -41,4 +43,53 @@ func TestProgressBarBounds(t *testing.T) {
 	if lipgloss.Width(bar) != 10 {
 		t.Fatalf("bar=%q len=%d", bar, lipgloss.Width(bar))
 	}
+}
+
+func TestFinishPhaseDoesNotCallBanner(t *testing.T) {
+	rec := &notify.RecordingNotifier{}
+	cfg := pomodoro.Config{
+		Focus:  time.Second,
+		Break:  time.Second,
+		Long:   time.Second,
+		Cycles: 1,
+		Auto:   true,
+	}
+	s := newSessionModel(cfg, 40, 24, rec)
+	s.remaining = 0
+	m, cmd := s.finishPhase()
+	s = m.(sessionModel)
+	_ = s
+	if cmd == nil {
+		t.Fatal("expected command from finishPhase")
+	}
+	end, ok := findSessionPhaseEndMsg(cmd)
+	if !ok {
+		t.Fatal("expected sessionPhaseEndMsg from finishPhase")
+	}
+	if end.Title != "Focus complete" {
+		t.Fatalf("title=%q", end.Title)
+	}
+	for _, e := range rec.Events {
+		if strings.HasPrefix(e, "banner:") {
+			t.Fatalf("banner must not be called from TUI finishPhase: %v", rec.Events)
+		}
+	}
+}
+
+func findSessionPhaseEndMsg(cmd tea.Cmd) (sessionPhaseEndMsg, bool) {
+	if cmd == nil {
+		return sessionPhaseEndMsg{}, false
+	}
+	msg := cmd()
+	if end, ok := msg.(sessionPhaseEndMsg); ok {
+		return end, true
+	}
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range batch {
+			if end, found := findSessionPhaseEndMsg(c); found {
+				return end, true
+			}
+		}
+	}
+	return sessionPhaseEndMsg{}, false
 }

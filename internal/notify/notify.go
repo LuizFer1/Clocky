@@ -49,3 +49,23 @@ func All(n Notifier, title, body string) error {
 	}
 	return n.Desktop(title, body)
 }
+
+// RecordingNotifier records Beep/Banner/Desktop calls for tests.
+type RecordingNotifier struct {
+	Events []string
+}
+
+func (r *RecordingNotifier) Beep() error {
+	r.Events = append(r.Events, "beep")
+	return nil
+}
+
+func (r *RecordingNotifier) Banner(title, body string) error {
+	r.Events = append(r.Events, "banner:"+title+":"+body)
+	return nil
+}
+
+func (r *RecordingNotifier) Desktop(title, body string) error {
+	r.Events = append(r.Events, "desktop:"+title+":"+body)
+	return nil
+}
