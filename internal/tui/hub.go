@@ -44,6 +44,9 @@ type openConfirmMsg struct {
 	Name string
 }
 
+type openPomodoroMsg struct{}
+type stopPomodoroMsg struct{}
+
 type hubModel struct {
 	deps         Dependencies
 	active       activeSnapshot
@@ -248,6 +251,10 @@ func (h hubModel) activateAction(id actionID) (tea.Model, tea.Cmd) {
 		return h.doStopwatch()
 	case actionStopTimer:
 		return h.doStopTimer()
+	case actionOpenPomodoro:
+		return h, func() tea.Msg { return openPomodoroMsg{} }
+	case actionStopPomodoro:
+		return h, func() tea.Msg { return stopPomodoroMsg{} }
 	default:
 		return h, nil
 	}
@@ -392,7 +399,23 @@ func renderActive(a activeSnapshot) string {
 	} else {
 		lines = append(lines, off+" "+name("Stopwatch")+" "+styleMuted.Render("idle"))
 	}
-	lines = append(lines, off+" "+name("Pomodoro")+" "+styleMuted.Render("idle — New Pomodoro or start a preset"))
+	if a.PomodoroActive {
+		state := fmt.Sprintf("%s %d/%d  %02d:%02d left",
+			a.PomodoroPhase, a.PomodoroCycle, a.PomodoroCycles,
+			int64(a.PomodoroRemaining/time.Minute),
+			int64((a.PomodoroRemaining%time.Minute)/time.Second))
+		if a.PomodoroWaiting {
+			state = fmt.Sprintf("%s %d/%d  waiting", a.PomodoroPhase, a.PomodoroCycle, a.PomodoroCycles)
+		} else if a.PomodoroPaused {
+			state = fmt.Sprintf("%s %d/%d  PAUSED  %02d:%02d",
+				a.PomodoroPhase, a.PomodoroCycle, a.PomodoroCycles,
+				int64(a.PomodoroRemaining/time.Minute),
+				int64((a.PomodoroRemaining%time.Minute)/time.Second))
+		}
+		lines = append(lines, on+" "+name("Pomodoro")+" "+styleOK.Render(state))
+	} else {
+		lines = append(lines, off+" "+name("Pomodoro")+" "+styleMuted.Render("idle — New Pomodoro or start a preset"))
+	}
 	return strings.Join(lines, "\n")
 }
 

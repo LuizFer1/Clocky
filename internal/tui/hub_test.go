@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -30,5 +31,22 @@ func TestHubToggleStopwatch(t *testing.T) {
 	}
 	if !h.active.StopwatchRunning {
 		t.Fatal("hub active not updated")
+	}
+}
+
+func TestRenderActiveShowsPomodoro(t *testing.T) {
+	a := activeSnapshot{
+		PomodoroActive:    true,
+		PomodoroPhase:     "FOCUS",
+		PomodoroCycle:     1,
+		PomodoroCycles:    4,
+		PomodoroRemaining: 12*time.Minute + 34*time.Second,
+	}
+	got := renderActive(a)
+	if !strings.Contains(got, "FOCUS") || !strings.Contains(got, "1/4") {
+		t.Fatalf("active=%q", got)
+	}
+	if !strings.Contains(got, "12:34") {
+		t.Fatalf("missing remaining in %q", got)
 	}
 }

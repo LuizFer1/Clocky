@@ -31,6 +31,7 @@ type sessionModel struct {
 	total        time.Duration
 	paused       bool
 	waitingEnter bool
+	active       bool
 	width        int
 	height       int
 	status       string
@@ -56,6 +57,7 @@ func newSessionModel(cfg pomodoro.Config, width, height int, n notify.Notifier) 
 		notifier: n,
 	}
 	if len(phases) > 0 {
+		s.active = true
 		s.total = phases[0].Duration
 		s.remaining = phases[0].Duration
 		if s.total <= 0 {
@@ -65,6 +67,8 @@ func newSessionModel(cfg pomodoro.Config, width, height int, n notify.Notifier) 
 	}
 	return s
 }
+
+func (s sessionModel) live() bool { return s.active }
 
 func (s sessionModel) Init() tea.Cmd {
 	return scheduleTick()

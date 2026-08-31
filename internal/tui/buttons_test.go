@@ -69,3 +69,16 @@ func TestLaunchPomodoroFormSubmit(t *testing.T) {
 		t.Fatalf("cfg=%+v", msg.Cfg)
 	}
 }
+
+func TestHubActionButtonsIncludePomodoroControls(t *testing.T) {
+	a := activeSnapshot{PomodoroActive: true}
+	btns := hubActionButtons(a)
+	labels := make([]string, len(btns))
+	for i, b := range btns {
+		labels[i] = b.Label
+	}
+	joined := strings.Join(labels, ",")
+	if !strings.Contains(joined, "Open Pomodoro") || !strings.Contains(joined, "Stop Pomodoro") {
+		t.Fatalf("buttons=%v", labels)
+	}
+}

@@ -20,6 +20,8 @@ const (
 	actionNewTimer
 	actionStopwatchToggle
 	actionStopTimer
+	actionOpenPomodoro
+	actionStopPomodoro
 )
 
 type actionButton struct {
@@ -48,16 +50,25 @@ var (
 
 // hubActionButtons builds the action row. Stopwatch label flips with state;
 // Stop Timer only appears while a background timer is running.
+// When a pomodoro is live, New Pomodoro is replaced by Open/Stop.
 func hubActionButtons(a activeSnapshot) []actionButton {
 	swLabel := "Start Stopwatch"
 	if a.StopwatchRunning {
 		swLabel = "Stop Stopwatch"
 	}
-	btns := []actionButton{
-		{actionNewPomodoro, "New Pomodoro"},
-		{actionNewTimer, "New Timer"},
-		{actionStopwatchToggle, swLabel},
+	var btns []actionButton
+	if a.PomodoroActive {
+		btns = append(btns,
+			actionButton{actionOpenPomodoro, "Open Pomodoro"},
+			actionButton{actionStopPomodoro, "Stop Pomodoro"},
+		)
+	} else {
+		btns = append(btns, actionButton{actionNewPomodoro, "New Pomodoro"})
 	}
+	btns = append(btns,
+		actionButton{actionNewTimer, "New Timer"},
+		actionButton{actionStopwatchToggle, swLabel},
+	)
 	if a.TimerActive {
 		btns = append(btns, actionButton{actionStopTimer, "Stop Timer"})
 	}

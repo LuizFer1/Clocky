@@ -13,6 +13,14 @@ type activeSnapshot struct {
 	TimerLabel       string
 	StopwatchRunning bool
 	StopwatchElapsed time.Duration
+
+	PomodoroActive    bool
+	PomodoroPhase     string
+	PomodoroCycle     int
+	PomodoroCycles    int
+	PomodoroRemaining time.Duration
+	PomodoroWaiting   bool
+	PomodoroPaused    bool
 }
 
 func refreshActive(root string, now time.Time) activeSnapshot {
@@ -26,5 +34,23 @@ func refreshActive(root string, now time.Time) activeSnapshot {
 		a.StopwatchRunning = running
 		a.StopwatchElapsed = elapsed
 	}
+	return a
+}
+
+func mergePomodoroActive(a activeSnapshot, s sessionModel) activeSnapshot {
+	if !s.live() {
+		return a
+	}
+	a.PomodoroActive = true
+	if len(s.phases) == 0 || s.index >= len(s.phases) {
+		return a
+	}
+	ph := s.phases[s.index]
+	a.PomodoroPhase = ph.Name
+	a.PomodoroCycle = ph.Cycle
+	a.PomodoroCycles = s.cfg.Cycles
+	a.PomodoroRemaining = s.remaining
+	a.PomodoroWaiting = s.waitingEnter
+	a.PomodoroPaused = s.paused
 	return a
 }
