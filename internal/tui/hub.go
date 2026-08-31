@@ -88,7 +88,7 @@ func (h *hubModel) reload() {
 }
 
 func (h hubModel) Init() tea.Cmd {
-	return scheduleTick()
+	return nil // the app model owns the single tick loop
 }
 
 func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -97,22 +97,6 @@ func (h hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		h.width = msg.Width
 		h.height = msg.Height
 		return h, nil
-	case tickMsg:
-		prev := h.active
-		h.active = refreshActive(h.deps.Root, h.deps.Now())
-		if note, ok := timerFinishedNotice(prev, h.active, h.status); ok {
-			h.notice = note
-			h.status = note
-			h.errMsg = ""
-			h.alerting = true
-			return h, tea.Batch(scheduleTick(), hubAudioAlert(), scheduleAlertTick())
-		}
-		return h, scheduleTick()
-	case alertTickMsg:
-		if !h.alerting {
-			return h, nil
-		}
-		return h, tea.Batch(hubAudioAlert(), scheduleAlertTick())
 	case hubAlertMsg:
 		return h, nil
 	case tea.KeyMsg:

@@ -113,6 +113,56 @@ func TestOpenPomodoroReturnsToSession(t *testing.T) {
 	}
 }
 
+func TestTransitionsDoNotScheduleExtraTick(t *testing.T) {
+	// The app-level tick loop is perpetual; transition messages must not
+	// schedule extra ticks or the pomodoro counts at double speed.
+	m := initialModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+	m.session = newSessionModel(pomodoro.Config{
+		Focus: time.Minute, Break: time.Minute, Long: time.Minute, Cycles: 1, Auto: true,
+	}, 80, 24, nil)
+	m.page = pageSession
+
+	mod, cmd := m.Update(sessionMinimizeMsg{})
+	if cmd != nil {
+		t.Fatal("minimize scheduled an extra tick loop")
+	}
+	m = mod.(appModel)
+
+	_, cmd = m.Update(openPomodoroMsg{})
+	if cmd != nil {
+		t.Fatal("open pomodoro scheduled an extra tick loop")
+	}
+}
+
+func TestTickReschedulesOnEveryPage(t *testing.T) {
+	// The tick loop must survive pages that ignore tickMsg (form, picker,
+	// confirm), otherwise a session launched from the form never counts down.
+	for _, p := range []page{pageHub, pageSession, pageForm, pageConfirm, pagePicker} {
+		m := initialModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+		m.page = p
+		_, cmd := m.Update(tickMsg{})
+		if cmd == nil {
+			t.Fatalf("tick loop died on page %v", p)
+		}
+	}
+}
+
+func TestTickReachesSessionFromAnyPage(t *testing.T) {
+	m := initialModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+	m.session = newSessionModel(pomodoro.Config{
+		Focus: time.Minute, Break: time.Minute, Long: time.Minute, Cycles: 1, Auto: true,
+	}, 80, 24, nil)
+	for _, p := range []page{pageSession, pageHub, pageForm} {
+		m.page = p
+		before := m.session.remaining
+		mod, _ := m.Update(tickMsg{})
+		m = mod.(appModel)
+		if got := before - m.session.remaining; got != time.Second {
+			t.Fatalf("page %v: tick advanced %v, want 1s", p, got)
+		}
+	}
+}
+
 func TestHubTickKeepsPomodoroActive(t *testing.T) {
 	m := initialModel(Dependencies{Root: t.TempDir(), Now: time.Now})
 	m.session = newSessionModel(pomodoro.Config{

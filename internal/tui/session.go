@@ -71,7 +71,7 @@ func newSessionModel(cfg pomodoro.Config, width, height int, n notify.Notifier) 
 func (s sessionModel) live() bool { return s.active }
 
 func (s sessionModel) Init() tea.Cmd {
-	return scheduleTick()
+	return nil // the app model owns the single tick loop
 }
 
 func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -82,7 +82,7 @@ func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, nil
 	case tickMsg:
 		if s.waitingEnter || s.paused || len(s.phases) == 0 {
-			return s, scheduleTick()
+			return s, nil
 		}
 		step := time.Second
 		if s.remaining < step {
@@ -92,7 +92,7 @@ func (s sessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if s.remaining <= 0 {
 			return s.finishPhase()
 		}
-		return s, scheduleTick()
+		return s, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case " ":
@@ -141,7 +141,7 @@ func (s sessionModel) finishPhase() (tea.Model, tea.Cmd) {
 		s.waitingEnter = true
 		s.paused = false
 		s.status = "Press Enter or n to continue"
-		return s, tea.Batch(phaseCmd, scheduleTick())
+		return s, phaseCmd
 	}
 	// Auto: advance, then notify about the phase that just ended.
 	m, advCmd := s.advanceAfterWait()
@@ -163,7 +163,7 @@ func (s sessionModel) advanceAfterWait() (tea.Model, tea.Cmd) {
 		s.remaining = time.Second
 	}
 	s.paused = false
-	return s, scheduleTick()
+	return s, nil
 }
 
 func (s sessionModel) View() string {

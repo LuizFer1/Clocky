@@ -60,7 +60,9 @@ func initialModel(deps Dependencies) appModel {
 }
 
 func (m appModel) Init() tea.Cmd {
-	return m.hub.Init()
+	// The app owns the single perpetual tick loop: exactly one tick is
+	// pending at any time, rescheduled only from the tickMsg handler.
+	return scheduleTick()
 }
 
 func (m *appModel) syncHubPomodoro() {
@@ -80,8 +82,45 @@ func (m appModel) stopSession() appModel {
 	return m
 }
 
+// applyTick advances the session (if live) and refreshes hub timers, then
+// reschedules the single tick loop. Runs regardless of the current page so
+// the loop never dies and never duplicates.
+func (m appModel) applyTick(msg tickMsg) (tea.Model, tea.Cmd) {
+	cmds := []tea.Cmd{scheduleTick()}
+	if m.session.live() {
+		if m.page != pageSession && !m.session.waitingEnter {
+			m.session.paused = false // background always runs (spec)
+		}
+		sm, scmd := m.session.Update(msg)
+		m.session = sm.(sessionModel)
+		if scmd != nil {
+			cmds = append(cmds, scmd)
+		}
+	}
+	prev := m.hub.active
+	m.hub.active = refreshActive(m.hub.deps.Root, m.hub.deps.Now())
+	if note, ok := timerFinishedNotice(prev, m.hub.active, m.hub.status); ok {
+		m.hub.notice = note
+		m.hub.status = note
+		m.hub.errMsg = ""
+		if !m.hub.alerting {
+			cmds = append(cmds, hubAudioAlert(), scheduleAlertTick())
+		}
+		m.hub.alerting = true
+	}
+	m.syncHubPomodoro()
+	return m, tea.Batch(cmds...)
+}
+
 func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tickMsg:
+		return m.applyTick(msg)
+	case alertTickMsg:
+		if !m.hub.alerting {
+			return m, nil
+		}
+		return m, tea.Batch(hubAudioAlert(), scheduleAlertTick())
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -100,7 +139,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.session.live() {
 			m.hub.errMsg = "pomodoro already running — Open or Stop it first"
 			m.page = pageHub
-			return m, scheduleTick()
+			return m, nil
 		}
 		m.session = newSessionModel(msg.Cfg, m.width, m.height, nil)
 		m.page = pageSession
@@ -111,30 +150,30 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.hub.reload()
 		m.syncHubPomodoro()
 		m.hub.status = "Pomodoro running in background"
-		return m, scheduleTick()
+		return m, nil
 	case openPomodoroMsg:
 		if !m.session.live() {
 			m.hub.errMsg = "no pomodoro running"
 			return m, nil
 		}
 		m.page = pageSession
-		return m, scheduleTick()
+		return m, nil
 	case stopPomodoroMsg:
 		m = m.stopSession()
 		m.page = pageHub
-		return m, scheduleTick()
+		return m, nil
 	case sessionDoneMsg:
 		m.session.active = false
 		m.page = pageHub
 		m.hub.reload()
 		m.syncHubPomodoro()
-		return m, scheduleTick()
+		return m, nil
 	case sessionPhaseEndMsg:
 		return m.applyPhaseEnd(msg)
 	case sessionAbortMsg:
 		m = m.stopSession()
 		m.page = pageHub
-		return m, scheduleTick()
+		return m, nil
 	case openPickerMsg:
 		m.picker = newPickerModel()
 		m.picker.width, m.picker.height = m.width, m.height
@@ -142,7 +181,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case pickerCancelMsg:
 		m.page = pageHub
-		return m, scheduleTick()
+		return m, nil
 	case pickerChoiceMsg:
 		switch msg.Kind {
 		case formPomodoro:
@@ -179,14 +218,14 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncHubPomodoro()
 		m.hub.status = "Preset saved"
 		m.hub.errMsg = ""
-		return m, scheduleTick()
+		return m, nil
 	case formLaunchPomodoroMsg:
 		if m.session.live() {
 			m.hub.errMsg = "pomodoro already running — Open or Stop it first"
 			m.page = pageHub
 			m.hub.reload()
 			m.syncHubPomodoro()
-			return m, scheduleTick()
+			return m, nil
 		}
 		m.page = pageHub
 		m.hub.reload()
@@ -210,10 +249,10 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.SavedPreset {
 			m.hub.status = fmt.Sprintf("Preset saved · timer started: %s", msg.Label)
 		}
-		return m, scheduleTick()
+		return m, nil
 	case formCancelMsg:
 		m.page = pageHub
-		return m, scheduleTick()
+		return m, nil
 	case openConfirmMsg:
 		m.pendingKind = msg.Kind
 		m.pendingName = msg.Name
@@ -233,7 +272,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.page = pageHub
 		m.hub.reload()
 		m.syncHubPomodoro()
-		return m, scheduleTick()
+		return m, nil
 	}
 
 	switch m.page {
@@ -245,30 +284,12 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.session = sm.(sessionModel)
 				m.syncHubPomodoro()
 				m.hub.status = "Next phase started"
-				return m, tea.Batch(scmd, scheduleTick())
+				return m, scmd
 			}
 		}
 		if m.session.live() {
 			if !m.session.waitingEnter {
 				m.session.paused = false
-			}
-			// For tickMsg we must avoid double scheduleTick (session + hub both schedule).
-			if _, ok := msg.(tickMsg); ok {
-				sm, scmd := m.session.Update(msg)
-				m.session = sm.(sessionModel)
-				// Manual hub tick without duplicate schedule: refresh active and check timer notice
-				prev := m.hub.active
-				m.hub.active = refreshActive(m.hub.deps.Root, m.hub.deps.Now())
-				if note, ok := timerFinishedNotice(prev, m.hub.active, m.hub.status); ok {
-					m.hub.notice = note
-					m.hub.status = note
-					m.hub.errMsg = ""
-					m.hub.alerting = true
-					m.syncHubPomodoro()
-					return m, tea.Batch(scmd, hubAudioAlert(), scheduleAlertTick())
-				}
-				m.syncHubPomodoro()
-				return m, scmd
 			}
 			sm, scmd := m.session.Update(msg)
 			m.session = sm.(sessionModel)
@@ -316,6 +337,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m appModel) applyPhaseEnd(msg sessionPhaseEndMsg) (tea.Model, tea.Cmd) {
 	m.hub.notice = fmt.Sprintf("%s — %s", msg.Title, msg.Body)
 	m.hub.status = m.hub.notice
+	wasAlerting := m.hub.alerting
 	m.hub.alerting = true
 	m.hub.errMsg = ""
 	n := m.session.notifier
@@ -324,7 +346,10 @@ func (m appModel) applyPhaseEnd(msg sessionPhaseEndMsg) (tea.Model, tea.Cmd) {
 	}
 	_ = n.Desktop(msg.Title, msg.Body)
 	m.syncHubPomodoro()
-	return m, tea.Batch(hubAudioAlert(), scheduleAlertTick(), scheduleTick())
+	if wasAlerting {
+		return m, nil // alert loop already running; don't stack another
+	}
+	return m, tea.Batch(hubAudioAlert(), scheduleAlertTick())
 }
 
 func (m appModel) View() string {
