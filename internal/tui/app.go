@@ -238,6 +238,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pageHub:
 		mod, cmd := m.hub.Update(msg)
 		m.hub = mod.(hubModel)
+		m.syncHubPomodoro()
 		return m, cmd
 	case pageSession:
 		mod, cmd := m.session.Update(msg)

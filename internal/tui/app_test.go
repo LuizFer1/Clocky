@@ -112,3 +112,19 @@ func TestOpenPomodoroReturnsToSession(t *testing.T) {
 		t.Fatalf("page=%v want pageSession", m.page)
 	}
 }
+
+func TestHubTickKeepsPomodoroActive(t *testing.T) {
+	m := initialModel(Dependencies{Root: t.TempDir(), Now: time.Now})
+	m.session = newSessionModel(pomodoro.Config{
+		Focus: time.Minute, Break: time.Minute, Long: time.Minute, Cycles: 1, Auto: true,
+	}, 80, 24, nil)
+	m.page = pageSession
+	mod, _ := m.Update(sessionMinimizeMsg{})
+	m = mod.(appModel)
+	m.syncHubPomodoro()
+	mod, _ = m.Update(tickMsg{})
+	m = mod.(appModel)
+	if !m.hub.active.PomodoroActive {
+		t.Fatal("expected hub.active.PomodoroActive still true after tick")
+	}
+}
